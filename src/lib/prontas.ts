@@ -189,13 +189,14 @@ Fica pronto em até 7 dias. Pode ser no Pix ou parcelado no cartão. Posso dar a
         titulo: "Fechar",
         quando: "",
         categoria: "fechamento",
-        texto: (c) => `Que bom${c.vc}, vamos começar! Para eu montar o site preciso de:
+        texto: (c) => `Fechado${c.vc}! Então já podemos começar o projeto de ${c.empresa}.
 
-1. Logo e fotos que vocês já têm
-2. ${cap(c.seg.oQueMostrar)}
-3. A confirmação do pagamento da entrada
+Para deixar o site com a cara de vocês, me manda:
+1. Logo e fotos
+2. As informações que vão no site (${c.seg.oQueMostrar})
+3. O comprovante da entrada
 
-Assim que eu receber, começo e te mostro a primeira versão.`,
+Com isso eu já registro o www.${c.dominio}.com.br e coloco o site de vocês no ar.`,
       },
       {
         id: "primeira-direta",
