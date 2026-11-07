@@ -1,4 +1,4 @@
-import { segmentoPorId, servicoPorId, type Segmento } from "./catalogo";
+import { TERMO_MAPS, segmentoPorId, servicoPorId, type Segmento } from "./catalogo";
 import type { CategoriaId, Lead } from "./types";
 
 /**
@@ -23,11 +23,15 @@ export interface CtxZap {
   linkDemo: string;
   quandoReuniao: string; // " sábado, 14/11, às 10h" ou " no horário que combinamos"
   saudacao: string; // "Bom dia", "Boa tarde" ou "Boa noite"
+  vendedorNome: string;
+  termo: string; // "dentista", "barbearia"...
+  preco: string; // "R$ 1.450"
+  dominio: string; // "clinicasorrisoviana"
   nota: number | null;
   avaliacoes: number | null;
 }
 
-export function contextoZap(lead: Lead, vendedor: string): CtxZap {
+export function contextoZap(lead: Lead, vendedor: string, preco?: number): CtxZap {
   const nome = (lead.responsavel || "").trim().split(" ")[0] || "";
   const sv = servicoPorId(lead.servicoInteresse);
   return {
@@ -46,6 +50,10 @@ export function contextoZap(lead: Lead, vendedor: string): CtxZap {
     linkDemo: (lead.linkDemo || "").trim(),
     quandoReuniao: lead.reuniaoData ? ` ${quando(lead.reuniaoData)}` : " no horário que combinamos",
     saudacao: saudacaoAgora(),
+    vendedorNome: vendedor.trim().split(" ")[0],
+    termo: TERMO_MAPS[lead.segmento] ?? segmentoPorId(lead.segmento).nome,
+    preco: preco ? preco.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }) : "R$ 1.500",
+    dominio: lead.empresa.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "suaempresa",
     ...notaGoogle(lead),
   };
 }
@@ -101,41 +109,93 @@ export interface Etapa {
 
 export const ETAPAS: Etapa[] = [
   {
-    id: "inicio",
-    nome: "Começar a conversa",
+    id: "conversa",
+    nome: "Conversa até o fechamento",
     mensagens: [
       {
-        id: "inicio-ola",
-        titulo: "Só um oi",
+        id: "rot-abordagem",
+        titulo: "Abordagem",
         quando: "",
         categoria: "whatsapp",
         texto: (c) =>
-          c.nome
-            ? `${c.saudacao}, ${c.nome}, tudo bem?`
-            : `${c.saudacao}, tudo bem?\n\nFalo com o responsável por ${c.empresa}?`,
-      },
-      {
-        id: "inicio-apresentando",
-        titulo: "Oi e quem é você",
-        quando: "",
-        categoria: "whatsapp",
-        texto: (c) => `${c.saudacao}, tudo bem? ${c.euSou}.
+          c.siteStatus === "nao-encontrado"
+            ? `${c.saudacao}, tudo bem? Estava procurando ${c.empresa}${c.cidade ? ` aqui em ${c.cidade}` : ""} e queria ver mais informações, mas não encontrei muita coisa na internet.
 
-${c.nome ? `Falo com ${c.nome}?` : `Falo com o responsável por ${c.empresa}?`}`,
+Vocês não têm site?`
+            : `${c.saudacao}, tudo bem? Estava procurando ${c.empresa}${c.cidade ? ` aqui em ${c.cidade}` : ""} e entrei no site de vocês, mas não consegui achar todas as informações que eu queria.
+
+Vocês ainda usam esse site?`,
       },
       {
-        id: "inicio-elogio",
-        titulo: "Oi com elogio",
+        id: "rot-apresentacao",
+        titulo: "Apresentação",
         quando: "",
         categoria: "whatsapp",
+        texto: (c) => `Ah, entendi! Prazer, ${c.vendedorNome ? `meu nome é ${c.vendedorNome}` : "eu sou da Mindstrat"}, eu crio sites para ${c.seg.plural}${daCidade(c)}.
+
+Justamente por isso te chamei: hoje muita gente procura ${c.termo} no Google antes de escolher onde ir, e quem aparece primeiro acaba ficando com esses clientes.`,
+      },
+      {
+        id: "rot-permissao",
+        titulo: "Pedir para mostrar",
+        quando: "",
+        categoria: "whatsapp",
+        texto: (c) => `Tenho uma ideia que pode ajudar ${c.empresa} a aparecer melhor no Google e receber mais clientes direto no WhatsApp.
+
+Posso te mostrar como funciona?`,
+      },
+      {
+        id: "rot-modelo",
+        titulo: "Enviar o modelo",
+        quando: "",
+        categoria: "site-demonstrativo",
         texto: (c) =>
-          c.nota && c.nota >= 4.5
-            ? `${c.saudacao}, tudo bem? Vi ${c.empresa} no Google, nota ${String(c.nota).replace(".", ",")}${c.avaliacoes ? ` com ${c.avaliacoes} avaliações` : ""}. Parabéns pelo trabalho.
+          c.linkDemo
+            ? `Perfeito! Montei um modelo de como ficaria o site de ${c.empresa}:
 
-${c.nome ? `Falo com ${c.nome}?` : "Você é o responsável?"}`
-            : `${c.saudacao}, tudo bem? Encontrei ${c.empresa} procurando ${c.seg.plural}${daCidade(c)} e gostei do que vi.
+${c.linkDemo}
 
-${c.nome ? `Falo com ${c.nome}?` : "Você é o responsável?"}`,
+Abre no celular e dá uma olhada com calma. Depois me diz o que achou?`
+            : `Perfeito! Vou montar um modelo de como ficaria o site de ${c.empresa}, com a cara de vocês, e te mando ainda hoje. Pode ser?`,
+      },
+      {
+        id: "rot-explica",
+        titulo: "Explicar o site",
+        quando: "",
+        categoria: "proposta",
+        texto: (c) => `Funciona assim: o site mostra ${c.seg.oQueMostrar}, e tem um botão que leva o cliente direto para o WhatsApp de vocês.
+
+Ele fica cadastrado no Google, então quando alguém procurar ${c.termo}${c.cidade ? ` em ${c.cidade}` : ""}, ${c.empresa} aparece com mais destaque, na frente de quem não tem site. Hoje os concorrentes que já estão bem posicionados no Google acabam recebendo esses clientes.
+
+Na prática: mais gente encontra vocês, confia mais e chama para fechar.`,
+      },
+      {
+        id: "rot-valor",
+        titulo: "Passar o valor",
+        quando: "",
+        categoria: "fechamento",
+        texto: (c) => `Para deixar tudo pronto, o investimento fica ${c.preco}.
+
+Já inclui:
+• Site completo, funcionando no celular e no computador
+• Domínio próprio (www.${c.dominio}.com.br)
+• Hospedagem do primeiro ano
+• Ajustes até ficar do jeito de vocês
+
+Fica pronto em até 7 dias. Pode ser no Pix ou parcelado no cartão. Posso dar andamento?`,
+      },
+      {
+        id: "fechamento",
+        titulo: "Fechar",
+        quando: "",
+        categoria: "fechamento",
+        texto: (c) => `Que bom${c.vc}, vamos começar! Para eu montar o site preciso de:
+
+1. Logo e fotos que vocês já têm
+2. ${cap(c.seg.oQueMostrar)}
+3. A confirmação do pagamento da entrada
+
+Assim que eu receber, começo e te mostro a primeira versão.`,
       },
       {
         id: "primeira-direta",
@@ -147,42 +207,6 @@ ${c.nome ? `Falo com ${c.nome}?` : "Você é o responsável?"}`,
 Pesquisei ${c.empresa} no Google e ${sobreSite(c)}. Eu faço sites para ${c.seg.plural}${daCidade(c)}.
 
 Posso te mostrar uma ideia rápida de como ficaria o de vocês?`,
-      },
-    ],
-  },
-  {
-    id: "gancho",
-    nome: "Depois que responder",
-    mensagens: [
-      {
-        id: "gancho-site",
-        titulo: "Puxar o assunto do site",
-        quando: "",
-        categoria: "whatsapp",
-        texto: (c) =>
-          c.siteStatus === "nao-encontrado"
-            ? `Que bom! Eu estava vendo ${c.empresa} no Google e reparei que vocês ainda não têm site.
-
-Foi uma escolha de vocês ou ainda não deu tempo de fazer?`
-            : c.siteStatus === "desatualizado"
-              ? `Que bom! Eu estava vendo o site de ${c.empresa}. Faz tempo que ele foi feito?`
-              : `Que bom! Eu estava vendo o site de ${c.empresa}. Ele tem trazido cliente novo ou é mais para quem já conhece vocês?`,
-      },
-      {
-        id: "gancho-clientes",
-        titulo: "Perguntar de onde vêm os clientes",
-        quando: "",
-        categoria: "whatsapp",
-        texto: (c) => `Que bom! Uma curiosidade: hoje os ${c.seg.clientes} novos chegam mais por indicação, pelo Instagram ou pelo Google?`,
-      },
-      {
-        id: "gancho-ideia",
-        titulo: "Mostrar a ideia",
-        quando: "",
-        categoria: "whatsapp",
-        texto: (c) => `Pergunto porque eu faço sites para ${c.seg.plural}${daCidade(c)}. ${cap(c.seg.argumentos[0])}.
-
-Posso te mostrar como ficaria o de vocês? Sem compromisso.`,
       },
     ],
   },
@@ -332,19 +356,6 @@ Dá uma lida com calma e me fala o que achou. Se preferir, te explico por áudio
         quando: "Dois ou três dias depois de enviar.",
         categoria: "follow-up",
         texto: (c) => `${c.oi} Conseguiu ver a proposta? Ficou alguma dúvida sobre o que está incluso ou sobre o pagamento?`,
-      },
-      {
-        id: "fechamento",
-        titulo: "Cliente topou",
-        quando: "Pede o material para começar.",
-        categoria: "fechamento",
-        texto: (c) => `Que bom${c.vc}, vamos começar. Para eu montar o site preciso de:
-
-1. Logo e fotos que vocês já têm
-2. As informações que vão no site: ${c.seg.oQueMostrar}
-3. A confirmação do pagamento da entrada
-
-Assim que eu receber, começo e te mostro a primeira versão.`,
       },
     ],
   },

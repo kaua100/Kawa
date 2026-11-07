@@ -11,7 +11,7 @@ export async function postar<T>(url: string, corpo: unknown): Promise<T> {
     body: JSON.stringify(corpo),
   });
   const dados = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(dados.erro || "Algo deu errado. Tente de novo.");
+  if (!r.ok) throw Object.assign(new Error(dados.erro || "Algo deu errado. Tente de novo."), { codigo: dados.codigo as string | undefined });
   return dados as T;
 }
 

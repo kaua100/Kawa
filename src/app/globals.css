@@ -575,3 +575,28 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
 .pot-alto { background: color-mix(in srgb, var(--zap) 14%, transparent); color: var(--zap-escuro); }
 .pot-medio { background: var(--marca-texto-suave); color: var(--azul); }
 .pot-baixo { background: var(--sup-2); color: var(--suave); border: 1px solid var(--linha); }
+
+/* ---------- Ajustes: menos texto ---------- */
+.ficha-etapa { display: flex; align-items: center; gap: 8px; }
+.ficha-etapa select { border: 1px solid var(--linha-forte); background: var(--sup); border-radius: 99px; padding: 8px 14px; font-weight: 700; font-size: 15px; cursor: pointer; }
+.dobra { background: var(--sup); border: 1px solid var(--linha); border-radius: 16px; }
+.dobra > summary { cursor: pointer; padding: 14px 16px; font-family: var(--f-titulo); font-weight: 700; font-size: 16px; list-style: none; display: flex; justify-content: space-between; }
+.dobra > summary::-webkit-details-marker { display: none; }
+.dobra > summary::after { content: "+"; color: var(--suave); font-size: 20px; line-height: 1; }
+.dobra[open] > summary::after { content: "–"; }
+.dobra > .dados { border: 0; border-top: 1px solid var(--linha); border-radius: 0 0 16px 16px; }
+.dobra > section { padding: 0 16px 14px; }
+.preco { display: flex; flex-direction: column; align-items: flex-start; }
+
+.contas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--linha); }
+.contas-rot { font-weight: 700; font-size: 14px; color: var(--suave); margin-right: 2px; }
+.conta-chip { display: inline-flex; align-items: center; border: 1px solid var(--linha-forte); border-radius: 99px; background: var(--sup); overflow: hidden; }
+.conta-chip button { background: none; border: 0; cursor: pointer; padding: 6px 4px 6px 12px; font-size: 14px; }
+.conta-chip small { color: var(--suave); }
+.conta-chip .conta-x { padding: 6px 10px 6px 6px; color: var(--suave); font-size: 16px; }
+.conta-chip.ativo { border-color: var(--marca-texto); background: var(--marca-texto-suave); }
+.conta-chip.ativo button:first-child { font-weight: 700; color: var(--azul); }
+.conta-add { display: inline-flex; gap: 6px; flex: 1 1 280px; }
+.conta-add input { flex: 1; min-width: 0; border: 1px solid var(--linha-forte); border-radius: 99px; padding: 6px 12px; background: var(--sup); }
+.conta-mais { background: none; border: 1px dashed var(--linha-forte); border-radius: 99px; padding: 6px 12px; cursor: pointer; color: var(--suave); font-size: 14px; }
+.conta-mais:hover { color: var(--texto); border-color: var(--suave); }

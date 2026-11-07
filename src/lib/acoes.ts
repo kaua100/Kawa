@@ -43,24 +43,23 @@ export const ROTEIROS: Record<RotaId, { nome: string; passos: Passo[] }> = {
   conversa: {
     nome: "Conversando",
     passos: [
-      { msg: "inicio-ola", nome: "Oi", dica: "Só cumprimente e espere responder." },
-      { msg: "gancho-site", nome: "Puxe o assunto", dica: "Pergunte. Ainda não ofereça nada." },
-      { msg: "gancho-clientes", nome: "Entenda o negócio", dica: "Deixe a pessoa falar." },
-      { msg: "gancho-ideia", nome: "Mostre a ideia", dica: "Agora sim, ofereça." },
-      { msg: "demo-envio", nome: "Envie o modelo", dica: "Mostre como ficaria." },
-      { msg: "reuniao-convite", nome: "Marque a conversa", dica: "15 minutos, vídeo ou presencial." },
-      { msg: "proposta-envio", nome: "Envie a proposta", dica: "Anexe o PDF." },
-      { msg: "fechamento", nome: "Feche", dica: "Peça o material e a entrada." },
+      { msg: "rot-abordagem", nome: "Oi", dica: "" },
+      { msg: "rot-apresentacao", nome: "Quem sou", dica: "" },
+      { msg: "rot-permissao", nome: "Mostrar", dica: "" },
+      { msg: "rot-modelo", nome: "Modelo", dica: "" },
+      { msg: "rot-explica", nome: "Explicar", dica: "" },
+      { msg: "rot-valor", nome: "Valor", dica: "" },
+      { msg: "fechamento", nome: "Fechar", dica: "" },
     ],
   },
   direto: {
     nome: "Direto",
     passos: [
-      { msg: "primeira-direta", nome: "Apresente", dica: "Já diga o que você faz." },
-      { msg: "resposta-explicar", nome: "Explique", dica: "O que o site faz por eles." },
-      { msg: "demo-envio", nome: "Envie o modelo", dica: "Mostre como ficaria." },
-      { msg: "proposta-envio", nome: "Envie a proposta", dica: "Anexe o PDF." },
-      { msg: "fechamento", nome: "Feche", dica: "Peça o material e a entrada." },
+      { msg: "primeira-direta", nome: "Oi", dica: "" },
+      { msg: "rot-modelo", nome: "Modelo", dica: "" },
+      { msg: "rot-explica", nome: "Explicar", dica: "" },
+      { msg: "rot-valor", nome: "Valor", dica: "" },
+      { msg: "fechamento", nome: "Fechar", dica: "" },
     ],
   },
 };
@@ -103,10 +102,10 @@ export function sugestao(lead: Lead): { etapa: Etapa; msg: MensagemPronta } {
       id = "recuperacao";
       break;
     case "reuniao":
-      id = primeiroNaoEnviado(["reuniao-confirmar", "proposta-envio"], "proposta-cobrar");
+      id = primeiroNaoEnviado(["reuniao-confirmar", "rot-explica", "rot-valor"], "proposta-cobrar");
       break;
     case "proposta":
-      id = primeiroNaoEnviado(["proposta-envio", "proposta-cobrar"], "proposta-cobrar");
+      id = enviados.has("rot-valor") || enviados.has("proposta-envio") ? primeiroNaoEnviado(["proposta-cobrar"], "fechamento") : "rot-valor";
       break;
     default: {
       const dias = diasDesdeUltimoEnvio(lead);
@@ -120,6 +119,12 @@ export function sugestao(lead: Lead): { etapa: Etapa; msg: MensagemPronta } {
 
 /** Quantos dias esperar até o próximo contato depois de cada mensagem. */
 const ESPERA: Record<string, number | null> = {
+  "rot-abordagem": 1,
+  "rot-apresentacao": 1,
+  "rot-permissao": 1,
+  "rot-modelo": 2,
+  "rot-explica": 2,
+  "rot-valor": 2,
   "inicio-ola": 1,
   "inicio-apresentando": 1,
   "inicio-elogio": 1,
@@ -146,14 +151,34 @@ const ESPERA: Record<string, number | null> = {
   recuperacao: 30,
 };
 
+export const ctxDoLead = (lead: Lead, vendedor: string) => contextoZap(lead, vendedor, lead.valor ?? sugerirPreco(lead).sugerido);
+
 export function textoDaMensagem(lead: Lead, msgId: string, vendedor: string) {
-  return mensagemPorId(msgId).msg.texto(contextoZap(lead, vendedor));
+  return mensagemPorId(msgId).msg.texto(ctxDoLead(lead, vendedor));
 }
+
+/** Etapa em que o lead passa a estar depois de cada mensagem do roteiro. */
+const AVANCA: Record<string, Lead["status"]> = {
+  "rot-modelo": "interessado",
+  "rot-valor": "proposta",
+  "proposta-envio": "proposta",
+  "reuniao-convite": "interessado",
+  fechamento: "fechado",
+};
+const ORDEM: Lead["status"][] = ["novo", "contatado", "interessado", "reuniao", "proposta", "fechado"];
 
 /** Registra o envio no histórico e agenda o próximo contato. Chamado ao clicar no botão do WhatsApp. */
 export function registrarEnvio(lead: Lead, msgId: string) {
   const { etapa, msg } = mensagemPorId(msgId);
   const espera = msgId in ESPERA ? ESPERA[msgId] : 3;
+  const alvo = AVANCA[msgId];
+  if (alvo && lead.status !== "perdido" && ORDEM.indexOf(alvo) > ORDEM.indexOf(lead.status)) {
+    alterarLead(lead.id, (l) => ({
+      ...l,
+      status: alvo,
+      valor: alvo === "proposta" || alvo === "fechado" ? l.valor ?? sugerirPreco(l).sugerido : l.valor,
+    }));
+  }
   adicionarContato(
     lead.id,
     {

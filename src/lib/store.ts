@@ -15,12 +15,19 @@ interface Estado {
   leads: Lead[];
   scripts: Script[];
   vendedor: string;
-  apifyToken: string;
+  apifyToken: string; // token em uso
+  apifyTokens: TokenApify[];
   carregando: boolean;
   userId: string | null;
 }
 
-const VAZIO: Estado = { leads: [], scripts: [], vendedor: "", apifyToken: "", carregando: true, userId: null };
+export interface TokenApify {
+  id: string;
+  nome: string;
+  token: string;
+}
+
+const VAZIO: Estado = { leads: [], scripts: [], vendedor: "", apifyToken: "", apifyTokens: [], carregando: true, userId: null };
 
 let estado: Estado = VAZIO;
 const ouvintes = new Set<() => void>();
@@ -59,7 +66,7 @@ export async function carregarDados(userId: string) {
   const [l, s, c] = await Promise.all([
     supabase.from("leads").select("dados").order("atualizado_em", { ascending: false }),
     supabase.from("scripts").select("dados").order("atualizado_em", { ascending: false }),
-    supabase.from("config").select("vendedor, apify_token").maybeSingle(),
+    supabase.from("config").select("vendedor, apify_token, apify_tokens").maybeSingle(),
   ]);
   erroAoSalvar(l.error ?? s.error ?? c.error);
   const carregados = (l.data ?? []).map((r) => r.dados as Lead);
@@ -85,6 +92,7 @@ export async function carregarDados(userId: string) {
     scripts: (s.data ?? []).map((r) => r.dados as Script),
     vendedor: c.data?.vendedor ?? "",
     apifyToken: c.data?.apify_token ?? "",
+    apifyTokens: lerTokens(c.data?.apify_tokens, c.data?.apify_token ?? ""),
     carregando: false,
   });
 }
@@ -177,6 +185,7 @@ function gravarConfig() {
       user_id: estado.userId,
       vendedor: estado.vendedor,
       apify_token: estado.apifyToken,
+      apify_tokens: estado.apifyTokens,
       atualizado_em: new Date().toISOString(),
     });
     erroAoSalvar(error);
@@ -188,8 +197,29 @@ export function definirVendedor(nome: string) {
   gravarConfig();
 }
 
+function lerTokens(lista: unknown, unico: string): TokenApify[] {
+  const tokens = Array.isArray(lista) ? (lista as TokenApify[]).filter((t) => t && t.token) : [];
+  if (!tokens.length && unico) return [{ id: novoId(), nome: "Conta 1", token: unico }];
+  return tokens;
+}
+
 export function definirApifyToken(token: string) {
   mudar({ apifyToken: token.trim() });
+  gravarConfig();
+}
+
+export function adicionarTokenApify(token: string, nome?: string) {
+  const t = token.trim();
+  if (!t || estado.apifyTokens.some((x) => x.token === t)) return;
+  const novo = { id: novoId(), nome: nome?.trim() || `Conta ${estado.apifyTokens.length + 1}`, token: t };
+  mudar({ apifyTokens: [...estado.apifyTokens, novo], apifyToken: estado.apifyToken || t });
+  gravarConfig();
+}
+
+export function removerTokenApify(id: string) {
+  const resto = estado.apifyTokens.filter((x) => x.id !== id);
+  const ativoSaiu = !resto.some((x) => x.token === estado.apifyToken);
+  mudar({ apifyTokens: resto, apifyToken: ativoSaiu ? resto[0]?.token ?? "" : estado.apifyToken });
   gravarConfig();
 }
 

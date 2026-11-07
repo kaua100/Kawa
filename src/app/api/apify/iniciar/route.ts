@@ -41,11 +41,12 @@ export async function POST(req: Request) {
   });
   const dados = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const msg = dados?.error?.message || `A Apify respondeu com erro ${r.status}`;
-    const status = r.status === 401 ? 400 : 502;
+    const msg: string = dados?.error?.message || `A Apify respondeu com erro ${r.status}`;
+    const semCredito = r.status === 402 || r.status === 403 || /limit|usage|credit|exceed|quota|plan/i.test(msg);
+    const codigo = r.status === 401 ? "invalido" : semCredito ? "sem-credito" : "erro";
     return NextResponse.json(
-      { erro: r.status === 401 ? "Token da Apify inválido. Confira o token no painel da Apify e cole de novo." : msg },
-      { status },
+      { erro: codigo === "invalido" ? "Token inválido" : codigo === "sem-credito" ? "Sem crédito nesta conta" : msg, codigo },
+      { status: codigo === "erro" ? 502 : 400 },
     );
   }
   return NextResponse.json({ runId: dados.data.id, datasetId: dados.data.defaultDatasetId });

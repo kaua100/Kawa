@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { avisar } from "@/lib/api";
 import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type CtxZap, type MensagemPronta } from "@/lib/prontas";
-import { mensagemPorId, registrarEnvio, ROTEIROS, type RotaId } from "@/lib/acoes";
+import { ctxDoLead, mensagemPorId, registrarEnvio, ROTEIROS, type RotaId } from "@/lib/acoes";
 import { salvarScript, useEstado } from "@/lib/store";
 import type { Lead } from "@/lib/types";
 
@@ -22,7 +22,7 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
     );
   }
 
-  const ctx = lead ? contextoZap(lead, vendedor) : null;
+  const ctx = lead ? ctxDoLead(lead, vendedor) : null;
   const telOk = lead ? !!telefoneWhatsApp(lead.telefone) : false;
   const rota = etapa.startsWith("rota:") ? (etapa.slice(5) as RotaId) : null;
   const et = rota ? null : ETAPAS.find((e) => e.id === etapa)!;
@@ -48,10 +48,10 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
           <div className="chips">
             {(Object.keys(ROTEIROS) as RotaId[]).map((r) => (
               <button key={r} className={`chip rota ${etapa === `rota:${r}` ? "ativo" : ""}`} onClick={() => setEtapa(`rota:${r}`)}>
-                Passo a passo: {ROTEIROS[r].nome.toLowerCase()}
+                {ROTEIROS[r].nome}
               </button>
             ))}
-            {ETAPAS.map((e) => (
+            {ETAPAS.filter((e) => ["followup", "objecoes", "depois"].includes(e.id)).map((e) => (
               <button key={e.id} className={`chip ${e.id === etapa ? "ativo" : ""}`} onClick={() => setEtapa(e.id)}>
                 {e.nome}
               </button>
@@ -67,7 +67,6 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
                     <div className="passo-lista-cab">
                       <span className="passo-num">{i + 1}</span>
                       <b>{p.nome}</b>
-                      <span>{p.dica}</span>
                     </div>
                     <CardMensagem key={`${lead.id}:${p.msg}:${vendedor}`} m={msg} ctx={ctx!} lead={lead} etapaNome={e.nome} />
                   </li>

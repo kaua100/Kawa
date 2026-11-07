@@ -75,18 +75,15 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
         </header>
 
         <div className="ficha-corpo">
-          <div className="etapas" role="radiogroup" aria-label="Etapa do lead">
-            {STATUS.map((s) => (
-              <button
-                key={s.id}
-                role="radio"
-                aria-checked={lead.status === s.id}
-                className={`etapa ${lead.status === s.id ? "ativo" : ""} st-${s.id}`}
-                onClick={() => salvarLead({ ...lead, status: s.id })}
-              >
-                {s.nome}
-              </button>
-            ))}
+          <div className="ficha-etapa">
+            <span className={`etapa-pill st-${lead.status}`} aria-hidden />
+            <select
+              value={lead.status}
+              onChange={(e) => salvarLead({ ...lead, status: e.target.value as Lead["status"] })}
+              aria-label="Etapa do lead"
+            >
+              {STATUS.map((st) => <option key={st.id} value={st.id}>{st.nome}</option>)}
+            </select>
           </div>
 
           <Roteiro key={`${lead.id}:${lead.contatos.length}:${lead.status}:${lead.roteiro}`} lead={lead} vendedor={vendedor} onMensagens={() => onMensagens(lead.id)} />
@@ -100,6 +97,8 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
 
           <Negocio lead={lead} />
 
+          <details className="dobra">
+            <summary>Dados da empresa</summary>
           <dl className="dados">
             <dt>Responsável</dt><dd>{lead.responsavel || "Não informado"}</dd>
             <dt>WhatsApp</dt><dd>{lead.telefone || "Sem telefone"}</dd>
@@ -119,8 +118,12 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
             {lead.infoPublica && (<><dt>Observações</dt><dd>{lead.infoPublica}</dd></>)}
             {lead.linkDemo && (<><dt>Site demonstrativo</dt><dd style={{ overflowWrap: "anywhere" }}>{lead.linkDemo}</dd></>)}
           </dl>
+          </details>
 
-          <Historico lead={lead} />
+          <details className="dobra">
+            <summary>Histórico ({lead.contatos.length})</summary>
+            <Historico lead={lead} />
+          </details>
 
           <div className="ficha-rodape">
             <button className="btn" onClick={() => setEditando(true)}>Editar dados</button>
@@ -214,7 +217,6 @@ function Roteiro({ lead, vendedor, onMensagens }: { lead: Lead; vendedor: string
       <div className="passo-card">
         <div className="passo-topo">
           <b>{titulo}</b>
-          {!extra && <span>{passos[indice].dica}</span>}
         </div>
         <textarea
           className="msg-texto"
@@ -282,7 +284,6 @@ function Historico({ lead }: { lead: Lead }) {
 
   return (
     <section>
-      <h3 className="ficha-sub">Histórico</h3>
       <div className="registrar">
         <select className="sel" value={tipo} onChange={(e) => setTipo(e.target.value as TipoContato)} aria-label="Tipo de contato">
           {TIPOS_CONTATO.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -328,7 +329,6 @@ function Negocio({ lead }: { lead: Lead }) {
         <span className={`pot pot-${preco.potencial}`} title={preco.fatores.join("\n")}>
           Potencial {preco.potencial === "medio" ? "médio" : preco.potencial}
         </span>
-        <small title={preco.fatores.join("\n")}>{reais(preco.min)} a {reais(preco.max)}, {servicoPorId(lead.servicoInteresse).nome}</small>
       </div>
       <div className="negocio-campos">
         {(lead.status === "reuniao" || lead.reuniaoData) && (

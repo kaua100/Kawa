@@ -42,17 +42,6 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
         </button>
       </section>
 
-      <button className="funil-faixa" onClick={onFunil} aria-label="Ver funil completo">
-        {STATUS.map((s) => {
-          const n = leads.filter((l) => l.status === s.id).length;
-          return (
-            <span key={s.id} className={`faixa-item st-${s.id}`} style={{ flexGrow: Math.max(n, 0.6) }}>
-              <b>{n}</b>
-              <small>{s.nome}</small>
-            </span>
-          );
-        })}
-      </button>
 
       {fila.length === 0 ? (
         <div className="card vazio">

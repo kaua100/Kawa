@@ -5,7 +5,7 @@ import { avisar, postar, useIntegracoes } from "@/lib/api";
 import { linkSite, qualificar, type Temperatura } from "@/lib/acoes";
 import { NICHOS_EM_ALTA, POTENCIAL, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
-import { definirApifyToken, novoId, salvarVariosLeads, useEstado } from "@/lib/store";
+import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
 import type { Encontrado } from "@/app/api/apify/status/route";
 import { SeloTemperatura } from "./AcoesRapidas";
@@ -14,7 +14,7 @@ import { IcInsta, IcPino, IcSite } from "./Icones";
 const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim().toLowerCase();
 
 export default function BuscarLeads({ onImportados }: { onImportados: () => void }) {
-  const { leads, apifyToken } = useEstado();
+  const { leads, apifyToken, apifyTokens } = useEstado();
   const integ = useIntegracoes();
   const [segmento, setSegmento] = useState<SegmentoId>("odontologia");
   const [busca, setBusca] = useState(TERMO_MAPS.odontologia);
@@ -22,7 +22,8 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const [maximo, setMaximo] = useState(20);
   const [contatos, setContatos] = useState(false);
   const [servico, setServico] = useState<ServicoId>("site");
-  const [mostrarToken, setMostrarToken] = useState(!apifyToken);
+  const [novoToken, setNovoToken] = useState("");
+  const [addAberto, setAddAberto] = useState(false);
 
   const [rodando, setRodando] = useState(false);
   const [segundos, setSegundos] = useState(0);
@@ -35,10 +36,9 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const parar = useRef(false);
 
   useEffect(() => () => { parar.current = true; }, []);
-  useEffect(() => { if (apifyToken) setMostrarToken(false); }, [apifyToken]);
 
   const jaCadastrados = useMemo(() => new Set(leads.map((l) => chave(l.empresa, l.telefone))), [leads]);
-  const temToken = Boolean(apifyToken || integ.apify);
+  const temToken = Boolean(apifyTokens.length || integ.apify);
 
   const avaliados = useMemo(
     () =>
@@ -68,10 +68,31 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
     const inicio = Date.now();
     const relogio = setInterval(() => setSegundos(Math.round((Date.now() - inicio) / 1000)), 1000);
     try {
-      const { runId } = await postar<{ runId: string }>("/api/apify/iniciar", { busca, local, maximo, contatos, token: apifyToken });
+      // Tenta o token em uso e, se ele estiver sem crédito ou inválido, passa para o próximo.
+      const ordem = apifyTokens.length
+        ? [...apifyTokens].sort((a, b) => (a.token === apifyToken ? -1 : b.token === apifyToken ? 1 : 0)).map((t) => t.token)
+        : [""];
+      let runId = "";
+      let usado = "";
+      for (const tk of ordem) {
+        try {
+          ({ runId } = await postar<{ runId: string }>("/api/apify/iniciar", { busca, local, maximo, contatos, token: tk }));
+          usado = tk;
+          break;
+        } catch (e) {
+          const codigo = (e as { codigo?: string }).codigo;
+          if ((codigo === "sem-credito" || codigo === "invalido") && tk !== ordem.at(-1)) {
+            const nome = apifyTokens.find((t) => t.token === tk)?.nome ?? "Conta";
+            avisar(`${nome}: ${codigo === "sem-credito" ? "sem crédito" : "token inválido"}. Usando a próxima.`);
+            continue;
+          }
+          throw e;
+        }
+      }
+      if (usado && usado !== apifyToken) definirApifyToken(usado);
       while (!parar.current) {
         await new Promise((r) => setTimeout(r, 5000));
-        const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", { runId, token: apifyToken });
+        const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", { runId, token: usado });
         if (r.status === "pronto") {
           const novos = r.encontrados ?? [];
           setSegBusca(detectarSegmento(busca) ?? segmento);
@@ -160,9 +181,8 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
       </div>
 
       <section className="nichos" aria-label="Nichos">
-        <h2 className="secao-titulo">Nichos que mais compram</h2>
         <div className="nichos-lista">
-          {NICHOS_EM_ALTA.map((s) => (
+          {NICHOS_EM_ALTA.slice(0, 10).map((s) => (
             <button key={s.id} className={`nicho ${segmento === s.id ? "ativo" : ""}`} onClick={() => escolherNicho(s.id)} aria-pressed={segmento === s.id}>
               <span>{s.nome.charAt(0).toUpperCase() + s.nome.slice(1)}</span>
               <span className="potencial" aria-label={`Potencial ${POTENCIAL[s.id]} de 3`}>
@@ -175,7 +195,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
 
       <form
         className="card pad busca-form"
-        onSubmit={(e) => { e.preventDefault(); if (temToken) buscar(); else setErro("Cole o token da Apify primeiro."); }}
+        onSubmit={(e) => { e.preventDefault(); if (temToken) buscar(); else setErro("Adicione um token da Apify."); }}
       >
         <div className="grade g3">
           <label className="campo">
@@ -226,18 +246,48 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
           {erro && <span className="erro" style={{ margin: 0 }}>{erro}</span>}
         </div>
 
-        <div className="token">
-          {mostrarToken || !temToken ? (
-            <label className="campo">
-              <span>Token da Apify</span>
-              <input type="password" defaultValue={apifyToken} placeholder="apify_api_..." onBlur={(e) => e.target.value.trim() && definirApifyToken(e.target.value)} autoComplete="off" />
-
-            </label>
+        <div className="contas">
+          <span className="contas-rot">Apify</span>
+          {apifyTokens.map((t) => (
+            <span key={t.id} className={`conta-chip ${t.token === apifyToken ? "ativo" : ""}`}>
+              <button type="button" onClick={() => definirApifyToken(t.token)} title="Usar esta conta">
+                {t.nome} <small>•••{t.token.slice(-4)}</small>
+              </button>
+              <button
+                type="button"
+                className="conta-x"
+                aria-label={`Remover ${t.nome}`}
+                onClick={() => confirm(`Remover ${t.nome}?`) && removerTokenApify(t.id)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {addAberto || !apifyTokens.length ? (
+            <span className="conta-add">
+              <input
+                type="password"
+                value={novoToken}
+                onChange={(e) => setNovoToken(e.target.value)}
+                placeholder="Cole o token apify_api_..."
+                autoComplete="off"
+                aria-label="Novo token da Apify"
+              />
+              <button
+                type="button"
+                className="btn peq prim"
+                disabled={!novoToken.trim()}
+                onClick={() => {
+                  adicionarTokenApify(novoToken);
+                  setNovoToken("");
+                  setAddAberto(false);
+                }}
+              >
+                Adicionar
+              </button>
+            </span>
           ) : (
-            <p className="dica" style={{ margin: 0 }}>
-              Apify conectada.{" "}
-              {apifyToken && <button type="button" className="link" onClick={() => setMostrarToken(true)}>Trocar token</button>}
-            </p>
+            <button type="button" className="conta-mais" onClick={() => setAddAberto(true)}>+ Token</button>
           )}
         </div>
       </form>
@@ -280,12 +330,11 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
                     </label>
                     <div className="achado-info">
                       <b>{e.nome}</b>
-                      <small>{e.endereco}</small>
+                      <small>{e.telefone || "Sem telefone"}</small>
                       <div className="achado-tags">
                         {!e.site && <span className="tag laranja">Sem site</span>}
                         {e.nota !== null && <span className="tag cinza">{String(e.nota).replace(".", ",")} ★ {e.avaliacoes !== null ? `(${e.avaliacoes})` : ""}</span>}
-                        {e.telefone ? <span className="tag cinza">{e.telefone}</span> : <span className="tag cinza">Sem telefone</span>}
-                        <span className="tag azul">{segmentoPorId(seg).nome}</span>
+                        {seg !== segBusca && <span className="tag azul">{segmentoPorId(seg).nome}</span>}
                         {ja && <span className="tag azul">Já está na lista</span>}
                       </div>
                     </div>
