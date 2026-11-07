@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SEGMENTOS, SERVICOS } from "@/lib/catalogo";
 import { novoId } from "@/lib/store";
 import type { Lead } from "@/lib/types";
+import { lerLocalDoLead, SeletorLocal } from "./SeletorLocal";
 
 export const leadVazio = (): Lead => ({
   id: novoId(),
@@ -48,7 +49,11 @@ export default function FormLead({ inicial, onSalvar, onFechar }: { inicial: Lea
               {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
             </select>
           </label>
-          <label className="campo"><span>Cidade</span><input value={l.cidade} onChange={(e) => set("cidade", e.target.value)} placeholder="Ex.: São Luís/MA" /></label>
+          <SeletorLocal
+            valor={lerLocalDoLead(l.cidade)}
+            onChange={(v) => set("cidade", v.cidade || v.uf ? `${v.cidade}/${v.uf}` : "")}
+            comBairro={false}
+          />
           <label className="campo"><span>WhatsApp com DDD</span><input value={l.telefone} inputMode="tel" onChange={(e) => set("telefone", e.target.value)} placeholder="(98) 99123-4567" /></label>
           <label className="campo">
             <span>Serviço que deseja oferecer</span>

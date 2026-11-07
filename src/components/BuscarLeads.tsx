@@ -9,6 +9,7 @@ import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salv
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
 import type { Encontrado } from "@/app/api/apify/status/route";
 import { SeloTemperatura } from "./AcoesRapidas";
+import { localParaBusca, localParaLead, SeletorLocal, type Local } from "./SeletorLocal";
 import { IcInsta, IcPino, IcSite } from "./Icones";
 
 const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim().toLowerCase();
@@ -18,7 +19,22 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const integ = useIntegracoes();
   const [segmento, setSegmento] = useState<SegmentoId>("odontologia");
   const [busca, setBusca] = useState(TERMO_MAPS.odontologia);
-  const [local, setLocal] = useState("");
+  const [lugar, setLugar] = useState<Local>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mindstrat:local") || "") as Local;
+    } catch {
+      return { uf: "", cidade: "", bairro: "" };
+    }
+  });
+  const local = localParaBusca(lugar);
+  const mudarLugar = (l: Local) => {
+    setLugar(l);
+    try {
+      localStorage.setItem("mindstrat:local", JSON.stringify(l));
+    } catch {
+      /* sem armazenamento */
+    }
+  };
   const [maximo, setMaximo] = useState(20);
   const [contatos, setContatos] = useState(false);
   const [servico, setServico] = useState<ServicoId>("site");
@@ -127,7 +143,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
         empresa: e.nome,
         responsavel: "",
         segmento: detectarSegmento(e.categoria, e.nome) ?? segBusca,
-        cidade: e.cidade || local,
+        cidade: e.cidade || localParaLead(lugar),
         telefone: e.telefone,
         site: e.site,
         siteStatus: e.site ? "ok" : "nao-encontrado",
@@ -211,10 +227,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
               required
             />
           </label>
-          <label className="campo">
-            <span>Cidade ou bairro</span>
-            <input value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Ex.: Moema, São Paulo" required />
-          </label>
+          <SeletorLocal valor={lugar} onChange={mudarLugar} />
           <label className="campo">
             <span>Quantidade</span>
             <select value={maximo} onChange={(e) => setMaximo(Number(e.target.value))}>
