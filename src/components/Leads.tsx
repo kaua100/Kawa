@@ -49,31 +49,29 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
       <div className="topo">
         <div>
           <h1>Leads</h1>
-          <p>{leads.length} {leads.length === 1 ? "empresa" : "empresas"} na sua carteira</p>
+          <p>{leads.length} {leads.length === 1 ? "empresa" : "empresas"}</p>
         </div>
         <div className="topo-acoes">
           <div className="alternar" role="tablist" aria-label="Forma de ver os leads">
             <button role="tab" aria-selected={visao === "lista"} className={visao === "lista" ? "ativo" : ""} onClick={() => setVisao("lista")}>Lista</button>
             <button role="tab" aria-selected={visao === "funil"} className={visao === "funil" ? "ativo" : ""} onClick={() => setVisao("funil")}>Funil</button>
           </div>
-          <button className="btn" onClick={onBuscar}>Buscar no Maps</button>
           <button className="btn prim" onClick={() => setFormulario(leadVazio())}>Novo lead</button>
         </div>
       </div>
 
       {leads.length === 0 ? (
         <div className="card vazio">
-          <p className="vazio-titulo">Sua carteira está vazia.</p>
-          <p>Busque empresas da sua cidade no Google Maps ou cadastre uma que você já conhece.</p>
+          <p className="vazio-titulo">Nenhuma empresa ainda.</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="btn prim" onClick={onBuscar}>Buscar empresas no Maps</button>
-            <button className="btn" onClick={() => setFormulario(leadVazio())}>Cadastrar manualmente</button>
+            <button className="btn prim" onClick={onBuscar}>Buscar empresas</button>
+            <button className="btn" onClick={() => setFormulario(leadVazio())}>Cadastrar</button>
           </div>
         </div>
       ) : (
         <>
           <div className="filtros-barra">
-            <input className="sel" placeholder="Buscar empresa, cidade ou responsável" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
+            <input className="sel" placeholder="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
             <select className="sel" value={filtroSeg} onChange={(e) => setFiltroSeg(e.target.value)} aria-label="Segmento">
               <option value="">Todos os segmentos</option>
               {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -92,7 +90,7 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
             </select>
             <label className="check">
               <input type="checkbox" checked={soSemSite} onChange={(e) => setSoSemSite(e.target.checked)} />
-              Só quem não tem site
+              Sem site
             </label>
           </div>
           {visao === "lista" ? <Lista leads={filtrados} onAbrir={onAbrir} /> : <Funil leads={filtrados} onAbrir={onAbrir} />}
@@ -226,7 +224,7 @@ function Funil({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => voi
                   </select>
                 </article>
               ))}
-              {col.length === 0 && <p className="coluna-vazia">Arraste um lead para cá</p>}
+              {col.length === 0 && <p className="coluna-vazia">Vazio</p>}
             </div>
           </section>
         );

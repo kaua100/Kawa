@@ -91,6 +91,7 @@ export interface Lead {
   nota?: number | null; // nota no Google
   avaliacoes?: number | null; // número de avaliações no Google
   proximoContato?: string; // data (AAAA-MM-DD) para chamar de novo
+  roteiro?: "conversa" | "direto"; // caminho escolhido para conduzir a conversa
   reuniaoData?: string; // data e hora da reunião (AAAA-MM-DDTHH:MM)
   valor?: number; // valor fechado ou proposto, em reais
   marcos?: Partial<Record<StatusLead, string>>; // quando o lead entrou em cada etapa (ISO)

@@ -22,28 +22,25 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
   return (
     <>
       <section className="hoje-cab">
-        <p className="hoje-data">{data.charAt(0).toUpperCase() + data.slice(1)}{nome ? `, ${nome}` : ""}</p>
-        <h1 className="hoje-titulo">
-          <span className="hoje-num">{fila.length}</span>
-          <span className="hoje-frase">{fila.length === 1 ? "empresa para chamar hoje" : "empresas para chamar hoje"}</span>
-        </h1>
-        {fila.length > 0 && (
-          <p className="hoje-resumo">
-            {retornos.length > 0 && `${retornos.length} ${retornos.length === 1 ? "retorno" : "retornos"} combinados`}
-            {retornos.length > 0 && novos.length > 0 && " e "}
-            {novos.length > 0 && `${novos.length} ${novos.length === 1 ? "primeiro contato" : "primeiros contatos"}`}.
-            {" "}Cada botão verde abre o WhatsApp já com a mensagem certa.
-          </p>
-        )}
+        <div className="hoje-esq">
+          <p className="hoje-data">{data.charAt(0).toUpperCase() + data.slice(1)}{nome ? `, ${nome}` : ""}</p>
+          <h1 className="hoje-titulo">
+            <span className="hoje-num">{fila.length}</span>
+            <span className="hoje-frase">{fila.length === 1 ? "para chamar hoje" : "para chamar hoje"}</span>
+          </h1>
+          {fila.length > 0 && (
+            <p className="hoje-resumo">
+              {retornos.length} {retornos.length === 1 ? "retorno" : "retornos"}, {novos.length} {novos.length === 1 ? "novo" : "novos"}
+            </p>
+          )}
+        </div>
+        <button className="hoje-semana" onClick={onResultados} aria-label="Ver resultados da semana">
+          <span><b>{semana.chamados}</b>chamados</span>
+          <span><b>{semana.reunioes}</b>{semana.reunioes === 1 ? "reunião" : "reuniões"}</span>
+          <span><b>{semana.fechados}</b>{semana.fechados === 1 ? "fechado" : "fechados"}</span>
+          <span className="destaque"><b>{reais(semana.faturado)}</b>na semana</span>
+        </button>
       </section>
-
-      <button className="semana" onClick={onResultados} aria-label="Ver resultados completos">
-        <span><b>{semana.chamados}</b> chamados</span>
-        <span><b>{semana.reunioes}</b> {semana.reunioes === 1 ? "reunião" : "reuniões"}</span>
-        <span><b>{semana.fechados}</b> {semana.fechados === 1 ? "fechado" : "fechados"}</span>
-        <span><b>{reais(semana.faturado)}</b> faturado</span>
-        <small>nesta semana</small>
-      </button>
 
       <button className="funil-faixa" onClick={onFunil} aria-label="Ver funil completo">
         {STATUS.map((s) => {
@@ -59,9 +56,8 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
 
       {fila.length === 0 ? (
         <div className="card vazio">
-          <p className="vazio-titulo">{leads.length ? "Ninguém para chamar hoje." : "Comece pela sua lista de empresas."}</p>
-          <p>{leads.length ? "Os retornos aparecem aqui no dia combinado. Enquanto isso, que tal buscar empresas novas?" : "Busque empresas da sua cidade no Google Maps e importe as que não têm site."}</p>
-          <button className="btn prim" onClick={onBuscar}>Buscar empresas no Maps</button>
+          <p className="vazio-titulo">{leads.length ? "Tudo em dia." : "Nenhuma empresa ainda."}</p>
+          <button className="btn prim grande" onClick={onBuscar}>Buscar empresas</button>
         </div>
       ) : (
         <ol className="fila">
@@ -81,11 +77,11 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
 
 function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => void }) {
   const { lead, motivo, atraso } = item;
-  const { etapa, msg } = sugestao(lead);
+  const { msg } = sugestao(lead);
   const selo =
-    motivo === "novo" ? <span className="tag azul">Primeiro contato</span>
-    : motivo === "atrasado" ? <span className="tag vermelho">{atraso === 1 ? "1 dia de atraso" : `${atraso} dias de atraso`}</span>
-    : <span className="tag amarelo">Retorno de hoje</span>;
+    motivo === "novo" ? <span className="tag azul">Novo</span>
+    : motivo === "atrasado" ? <span className="tag vermelho">{atraso === 1 ? "Atrasado 1 dia" : `Atrasado ${atraso} dias`}</span>
+    : <span className="tag amarelo">Retorno</span>;
 
   return (
     <li
@@ -101,14 +97,12 @@ function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => voi
           {selo}
           <SeloTemperatura lead={lead} mostrarPontos={false} />
         </div>
-        <small>
-          {segmentoPorId(lead.segmento).nome}
-          {lead.cidade ? ` em ${lead.cidade}` : ""}
-        </small>
-        <p className="fila-msg">
-          Vai enviar: {etapa.nome.toLowerCase()}, {msg.titulo.replaceAll('"', "").toLowerCase()}. Vale cerca de {reais(lead.valor ?? sugerirPreco(lead).sugerido)}.
-        </p>
+        <div className="fila-sub">
+          <span>{segmentoPorId(lead.segmento).nome}{lead.cidade ? `, ${lead.cidade.split("/")[0]}` : ""}</span>
+          <span className="fila-msg">{msg.titulo.replaceAll('"', "")}</span>
+        </div>
       </div>
+      <strong className="fila-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
       <div className="fila-acoes">
         <BotaoZap lead={lead} />
         <BotaoMaps lead={lead} compacto />

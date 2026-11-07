@@ -20,11 +20,11 @@ export default function Resultados() {
   const maxDia = Math.max(1, ...m.porDia.map((d) => d.mensagens));
 
   const etapas = [
-    { nome: "Empresas chamadas", valor: m.chamados, extra: `${m.mensagens} ${m.mensagens === 1 ? "mensagem ou ligação" : "mensagens e ligações"}` },
-    { nome: "Responderam com interesse", valor: m.responderam, extra: `${pct(m.responderam, m.chamados)} das chamadas` },
-    { nome: "Reuniões marcadas", valor: m.reunioes, extra: `${pct(m.reunioes, m.chamados)} das chamadas` },
-    { nome: "Propostas enviadas", valor: m.propostas, extra: `${pct(m.propostas, m.reunioes || m.chamados)} ${m.reunioes ? "das reuniões" : "das chamadas"}` },
-    { nome: "Clientes fechados", valor: m.fechados, extra: `${pct(m.fechados, m.chamados)} das chamadas` },
+    { nome: "Chamados", valor: m.chamados, extra: `${m.mensagens} ${m.mensagens === 1 ? "mensagem" : "mensagens"}` },
+    { nome: "Interessados", valor: m.responderam, extra: pct(m.responderam, m.chamados) },
+    { nome: "Reuniões", valor: m.reunioes, extra: pct(m.reunioes, m.chamados) },
+    { nome: "Propostas", valor: m.propostas, extra: pct(m.propostas, m.chamados) },
+    { nome: "Fechados", valor: m.fechados, extra: pct(m.fechados, m.chamados) },
   ];
   const topo = Math.max(1, etapas[0].valor);
 
@@ -33,7 +33,6 @@ export default function Resultados() {
       <div className="topo">
         <div>
           <h1>Resultados</h1>
-          <p>Quanto você prospectou, quantas conversas viraram reunião e quanto entrou.</p>
         </div>
         <div className="alternar" role="tablist" aria-label="Período">
           {PERIODOS.map((p) => (
@@ -48,17 +47,16 @@ export default function Resultados() {
         <div>
           <span className="faturado-rot">Faturado</span>
           <strong className="faturado-valor">{reais(m.faturado)}</strong>
-          <span className="dica">{m.fechados ? `${m.fechados} ${m.fechados === 1 ? "site fechado" : "sites fechados"}, ticket médio de ${reais(m.ticketMedio)}` : "Quando fechar um cliente, coloque o valor na ficha dele."}</span>
+          <span className="dica">{m.fechados ? `${m.fechados} ${m.fechados === 1 ? "fechado" : "fechados"}, média de ${reais(m.ticketMedio)}` : "Nenhum fechado ainda"}</span>
         </div>
         <div className="faturado-lado">
-          <span className="faturado-rot">Em negociação agora</span>
+          <span className="faturado-rot">Em negociação</span>
           <strong>{reais(m.emNegociacao)}</strong>
-          <span className="dica">Leads interessados, com reunião ou proposta. Usa o valor da proposta ou o preço sugerido.</span>
         </div>
       </section>
 
       <section className="card pad">
-        <h2 className="secao-titulo">Do primeiro contato ao fechamento</h2>
+        <h2 className="secao-titulo">Funil</h2>
         <ol className="conversao">
           {etapas.map((e, i) => (
             <li key={e.nome} className={`conv-${i}`}>
@@ -75,7 +73,7 @@ export default function Resultados() {
 
       <div className="resultados-grade">
         <section className="card pad">
-          <h2 className="secao-titulo">Contatos por dia, últimos 14 dias</h2>
+          <h2 className="secao-titulo">Últimos 14 dias</h2>
           <div className="barras" role="img" aria-label="Gráfico de contatos por dia">
             {m.porDia.map((d) => (
               <div key={d.dia} className="barra-col" title={`${d.dia.slice(8, 10)}/${d.dia.slice(5, 7)}: ${d.mensagens}`}>
@@ -90,7 +88,7 @@ export default function Resultados() {
         <section className="card pad">
           <h2 className="secao-titulo">Por nicho</h2>
           {m.porNicho.length === 0 ? (
-            <p className="dica">Os nichos aparecem aqui assim que você começar a chamar empresas.</p>
+            <p className="dica">Sem dados ainda</p>
           ) : (
             <table className="tabela">
               <thead><tr><th>Nicho</th><th>Chamados</th><th>Fechados</th><th>Faturado</th></tr></thead>

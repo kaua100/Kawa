@@ -29,44 +29,104 @@ const TODAS = ETAPAS.flatMap((e) => e.mensagens.map((m) => ({ etapa: e, msg: m }
 export const mensagemPorId = (id: string) => TODAS.find((x) => x.msg.id === id) ?? TODAS[0];
 export const todasMensagens = TODAS;
 
-/** Escolhe a mensagem que faz sentido agora, pela etapa do lead e pelo que já foi enviado. */
+/* ---------- Roteiro passo a passo ---------- */
+
+export type RotaId = "conversa" | "direto";
+
+export interface Passo {
+  msg: string;
+  nome: string;
+  dica: string;
+}
+
+export const ROTEIROS: Record<RotaId, { nome: string; passos: Passo[] }> = {
+  conversa: {
+    nome: "Conversando",
+    passos: [
+      { msg: "inicio-ola", nome: "Oi", dica: "Só cumprimente e espere responder." },
+      { msg: "gancho-site", nome: "Puxe o assunto", dica: "Pergunte. Ainda não ofereça nada." },
+      { msg: "gancho-clientes", nome: "Entenda o negócio", dica: "Deixe a pessoa falar." },
+      { msg: "gancho-ideia", nome: "Mostre a ideia", dica: "Agora sim, ofereça." },
+      { msg: "demo-envio", nome: "Envie o modelo", dica: "Mostre como ficaria." },
+      { msg: "reuniao-convite", nome: "Marque a conversa", dica: "15 minutos, vídeo ou presencial." },
+      { msg: "proposta-envio", nome: "Envie a proposta", dica: "Anexe o PDF." },
+      { msg: "fechamento", nome: "Feche", dica: "Peça o material e a entrada." },
+    ],
+  },
+  direto: {
+    nome: "Direto",
+    passos: [
+      { msg: "primeira-direta", nome: "Apresente", dica: "Já diga o que você faz." },
+      { msg: "resposta-explicar", nome: "Explique", dica: "O que o site faz por eles." },
+      { msg: "demo-envio", nome: "Envie o modelo", dica: "Mostre como ficaria." },
+      { msg: "proposta-envio", nome: "Envie a proposta", dica: "Anexe o PDF." },
+      { msg: "fechamento", nome: "Feche", dica: "Peça o material e a entrada." },
+    ],
+  },
+};
+
+export const FOLLOWUPS = ["follow-2dias", "follow-semana", "follow-ultima"];
+
+const enviadosDe = (lead: Lead) => new Set(lead.contatos.map((c) => c.msgId).filter(Boolean) as string[]);
+
+/** Em que passo do roteiro o lead está: o primeiro que ainda não foi enviado. */
+export function passoAtual(lead: Lead, rota: RotaId = lead.roteiro ?? "conversa") {
+  const enviados = enviadosDe(lead);
+  const passos = ROTEIROS[rota].passos;
+  const i = passos.findIndex((p) => !enviados.has(p.msg));
+  return { rota, indice: i === -1 ? passos.length - 1 : i, concluido: i === -1, enviados };
+}
+
+/** Lembrete para quem não respondeu: o próximo follow-up ainda não enviado. */
+export function proximoLembrete(lead: Lead) {
+  const enviados = enviadosDe(lead);
+  return FOLLOWUPS.find((id) => !enviados.has(id)) ?? "recuperacao";
+}
+
+function diasDesdeUltimoEnvio(lead: Lead) {
+  const ultimos = lead.contatos.filter((c) => c.msgId).map((c) => c.data);
+  if (!ultimos.length) return null;
+  const ultimo = ultimos.sort().at(-1)!;
+  return diasEntre(ultimo.slice(0, 10), hojeISO());
+}
+
+/** Escolhe a mensagem que faz sentido agora, pelo roteiro, pela etapa e pelo que já foi enviado. */
 export function sugestao(lead: Lead): { etapa: Etapa; msg: MensagemPronta } {
-  const enviados = new Set(lead.contatos.map((c) => c.msgId).filter(Boolean) as string[]);
+  const enviados = enviadosDe(lead);
   const primeiroNaoEnviado = (ids: string[], senao: string) => ids.find((id) => !enviados.has(id)) ?? senao;
-  const jaFalou = lead.contatos.length > 0;
   let id: string;
   switch (lead.status) {
-    case "novo":
-    case "contatado":
-      id = !jaFalou
-        ? "primeira-direta"
-        : primeiroNaoEnviado(["follow-2dias", "follow-semana", "follow-ultima"], "recuperacao");
+    case "fechado":
+      id = primeiroNaoEnviado(["fechamento", "pos-entrega", "pos-30dias", "pos-indicacao"], "pos-indicacao");
       break;
-    case "interessado":
-      id = lead.linkDemo
-        ? primeiroNaoEnviado(["demo-envio", "demo-cobrar", "reuniao-convite"], "proposta-envio")
-        : primeiroNaoEnviado(["resposta-explicar", "reuniao-convite"], "proposta-envio");
+    case "perdido":
+      id = "recuperacao";
       break;
     case "reuniao":
-      id = primeiroNaoEnviado(["reuniao-confirmar"], "proposta-envio");
+      id = primeiroNaoEnviado(["reuniao-confirmar", "proposta-envio"], "proposta-cobrar");
       break;
     case "proposta":
       id = primeiroNaoEnviado(["proposta-envio", "proposta-cobrar"], "proposta-cobrar");
       break;
-    case "fechado":
-      id = primeiroNaoEnviado(["fechamento", "pos-entrega", "pos-30dias", "pos-indicacao"], "pos-indicacao");
-      break;
-    default:
-      id = "recuperacao";
+    default: {
+      const dias = diasDesdeUltimoEnvio(lead);
+      // Mandou e a pessoa sumiu por 2 dias ou mais: lembrete. Senão, o próximo passo do roteiro.
+      if (lead.status === "contatado" && dias !== null && dias >= 2) id = proximoLembrete(lead);
+      else id = ROTEIROS[lead.roteiro ?? "conversa"].passos[passoAtual(lead).indice].msg;
+    }
   }
   return mensagemPorId(id);
 }
 
 /** Quantos dias esperar até o próximo contato depois de cada mensagem. */
 const ESPERA: Record<string, number | null> = {
+  "inicio-ola": 1,
+  "inicio-apresentando": 1,
+  "inicio-elogio": 1,
+  "gancho-site": 1,
+  "gancho-clientes": 1,
+  "gancho-ideia": 2,
   "primeira-direta": 2,
-  "primeira-pergunta": 2,
-  "primeira-segmento": 2,
   "follow-2dias": 5,
   "follow-semana": 7,
   "follow-ultima": null,

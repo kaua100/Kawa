@@ -35,17 +35,16 @@ export default function Central({ aba, setAba, leadInicial, temIA, onCadastrar }
     <>
       <div className="topo">
         <div>
-          <h1>Central de Abordagem</h1>
-          <p>Mensagens prontas para enviar no WhatsApp, roteiros de ligação e respostas para objeções.</p>
+          <h1>Mensagens</h1>
         </div>
       </div>
       <div className="abas">
         {(
           [
-            ["prontas", "Prontas pro WhatsApp"],
+            ["prontas", "WhatsApp"],
             ...(temIA ? [["gerador", "Gerador com IA"]] : []),
-            ["biblioteca", "Roteiros por segmento"],
-            ["objecoes", "Quebra de objeções"],
+            ["biblioteca", "Ligação"],
+            ["objecoes", "Objeções"],
             ["favoritos", `Favoritos (${favs})`],
             ["historico", `Histórico (${scripts.length})`],
           ] as [AbaCentral, string][]

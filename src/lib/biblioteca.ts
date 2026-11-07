@@ -70,7 +70,7 @@ Bom dia, tudo bem? Eu falo com ${c.responsavel}?
 (Se não for a pessoa: "Ah, tudo bem. Quem cuida da parte de divulgação da ${c.empresa}? Qual o melhor horário para falar com ela?")
 
 APRESENTAÇÃO
-Aqui é ${c.vendedor}, da Conecta Digital. A gente faz sites e cuida da presença no Google para ${c.seg.plural} aqui de ${c.cidade} e região.
+Aqui é ${c.vendedor}, da Mindstrat. A gente faz sites e cuida da presença no Google para ${c.seg.plural} aqui de ${c.cidade} e região.
 
 MOTIVO DO CONTATO
 Eu estava pesquisando a ${c.empresa} e ${c.sobreSite}. Por isso resolvi ligar, coisa rápida.
@@ -89,7 +89,7 @@ PRÓXIMO PASSO
 Prefere que eu te mande pelo WhatsApp agora e a gente conversa por lá, ou marcamos quinze minutos amanhã? Qual horário fica melhor para você?`,
 
   "segunda-ligacao": (c) => `RETOMADA
-${oi(c)} Aqui é ${c.vendedor}, da Conecta Digital. A gente conversou [dia da última conversa] sobre ${c.umServico} para a ${c.empresa}.
+${oi(c)} Aqui é ${c.vendedor}, da Mindstrat. A gente conversou [dia da última conversa] sobre ${c.umServico} para a ${c.empresa}.
 
 LEMBRAR O PONTO DA CONVERSA ANTERIOR
 Você tinha comentado que [o que a pessoa disse na primeira ligação]. Fiquei com isso na cabeça.
@@ -103,13 +103,13 @@ Você conseguiu pensar no assunto desde a última vez? O que ficou de dúvida?
 PEDIDO
 Posso te mandar agora pelo WhatsApp para você ver com calma? Depois eu te ligo uns dez minutinhos para explicar o que pensei.`,
 
-  whatsapp: (c) => `${oi(c)} Aqui é ${c.vendedor}, da Conecta Digital.
+  whatsapp: (c) => `${oi(c)} Aqui é ${c.vendedor}, da Mindstrat.
 
 Eu estava olhando a ${c.empresa} e ${c.sobreSite}. Trabalho com ${c.seg.plural} aqui de ${c.cidade} e uma coisa que eu sempre vejo é que ${c.seg.dores[0]}.
 
 Tenho uma ideia de ${c.servico} para vocês que ajuda nisso. Posso te mandar um áudio rápido ou uma imagem explicando?`,
 
-  instagram: (c) => `${oi(c)} Sou ${c.vendedor}, da Conecta Digital, aqui de ${c.cidade} também.
+  instagram: (c) => `${oi(c)} Sou ${c.vendedor}, da Mindstrat, aqui de ${c.cidade} também.
 
 Conheci o perfil da ${c.empresa} e gostei de [algo real que você viu no perfil: um post, o atendimento, as fotos].
 
@@ -157,7 +157,7 @@ Isso faz sentido para o que você precisa hoje? Ficou alguma dúvida sobre o que
     c.seg.cuidado ? `\n\nATENÇÃO: ${c.seg.cuidado}` : ""
   }`,
 
-  "follow-up": (c) => `${oi(c)} Aqui é ${c.vendedor}, da Conecta Digital.
+  "follow-up": (c) => `${oi(c)} Aqui é ${c.vendedor}, da Mindstrat.
 
 Passando para saber se você conseguiu ver [o modelo / a proposta] que te mandei para a ${c.empresa}.
 
@@ -207,7 +207,7 @@ Se eu receber o material até [dia], consigo te mostrar a primeira versão em [d
 SE A PESSOA HESITAR
 Tranquilo. O que precisaria acontecer para você se sentir seguro para começar?`,
 
-  recuperacao: (c) => `${oi(c)} Aqui é ${c.vendedor}, da Conecta Digital. A gente conversou um tempo atrás sobre ${c.umServico} para a ${c.empresa}.
+  recuperacao: (c) => `${oi(c)} Aqui é ${c.vendedor}, da Mindstrat. A gente conversou um tempo atrás sobre ${c.umServico} para a ${c.empresa}.
 
 Na época não era o momento, e eu entendi. Estou voltando a falar porque [motivo real: abriu agenda, novo modelo, condição de pagamento nova, época do ano importante para o segmento].
 

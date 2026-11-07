@@ -8,14 +8,18 @@ import {
   linkInstagram,
   linkSite,
   linkTelefone,
+  mensagemPorId,
+  passoAtual,
   proximoEfetivo,
+  proximoLembrete,
   reais,
+  ROTEIROS,
   sugerirPreco,
   sugestao,
-  temWhatsApp,
   textoDaMensagem,
+  type RotaId,
 } from "@/lib/acoes";
-import { STATUS, TIPOS_CONTATO, segmentoPorId, servicoPorId } from "@/lib/catalogo";
+import { SEGMENTOS, STATUS, TIPOS_CONTATO, servicoPorId } from "@/lib/catalogo";
 import { ETAPAS } from "@/lib/prontas";
 import { adicionarContato, alterarLead, excluirContato, excluirLead, salvarLead, useEstado } from "@/lib/store";
 import type { Lead, TipoContato } from "@/lib/types";
@@ -56,8 +60,15 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
           <div className="ficha-titulo">
             <h2>{lead.empresa}</h2>
             <p>
-              {segmentoPorId(lead.segmento).nome}
-              {lead.cidade ? ` em ${lead.cidade}` : ""}
+              <select
+                className="nicho-sel"
+                value={lead.segmento}
+                onChange={(e) => salvarLead({ ...lead, segmento: e.target.value as Lead["segmento"] })}
+                aria-label="Nicho da empresa"
+              >
+                {SEGMENTOS.map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
+              </select>
+              {lead.cidade ? <span>{lead.cidade}</span> : null}
             </p>
           </div>
           <SeloTemperatura lead={lead} />
@@ -78,7 +89,7 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
             ))}
           </div>
 
-          <ProximaMensagem key={`${lead.id}:${lead.contatos.length}:${lead.status}`} lead={lead} vendedor={vendedor} onMensagens={() => onMensagens(lead.id)} />
+          <Roteiro key={`${lead.id}:${lead.contatos.length}:${lead.status}:${lead.roteiro}`} lead={lead} vendedor={vendedor} onMensagens={() => onMensagens(lead.id)} />
 
           <div className="contatos-rapidos">
             <BotaoMaps lead={lead} />
@@ -144,62 +155,109 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
   );
 }
 
-function ProximaMensagem({ lead, vendedor, onMensagens }: { lead: Lead; vendedor: string; onMensagens: () => void }) {
+function Roteiro({ lead, vendedor, onMensagens }: { lead: Lead; vendedor: string; onMensagens: () => void }) {
+  const rota: RotaId = lead.roteiro ?? "conversa";
+  const atual = passoAtual(lead, rota);
+  const passos = ROTEIROS[rota].passos;
   const sugerida = sugestao(lead).msg.id;
-  const [msgId, setMsgId] = useState(sugerida);
-  const [texto, setTexto] = useState(() => textoDaMensagem(lead, sugerida, vendedor));
+  const noRoteiro = passos.findIndex((p) => p.msg === sugerida);
+  const [indice, setIndice] = useState(noRoteiro >= 0 ? noRoteiro : atual.indice);
+  const [extra, setExtra] = useState<string | null>(noRoteiro >= 0 ? null : sugerida);
+  const msgId = extra ?? passos[indice].msg;
+  const [texto, setTexto] = useState(() => textoDaMensagem(lead, msgId, vendedor));
   const prox = proximoEfetivo(lead);
 
-  const trocar = (id: string) => {
-    setMsgId(id);
-    setTexto(textoDaMensagem(lead, id, vendedor));
+  const mostrar = (i: number | null, outro: string | null = null) => {
+    if (i !== null) setIndice(i);
+    setExtra(outro);
+    setTexto(textoDaMensagem(lead, outro ?? passos[i ?? indice].msg, vendedor));
   };
+  const titulo = extra ? mensagemPorId(extra).msg.titulo.replaceAll('"', "") : `${indice + 1}. ${passos[indice].nome}`;
 
   return (
-    <section className="proxima">
-      <div className="proxima-cab">
-        <label className="campo" style={{ flex: 1 }}>
-          <span>Mensagem para enviar agora</span>
-          <select value={msgId} onChange={(e) => trocar(e.target.value)}>
-            {ETAPAS.map((et) => (
-              <optgroup key={et.id} label={et.nome}>
-                {et.mensagens.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.titulo.replaceAll('"', "")}{m.id === sugerida ? " (sugerida)" : ""}
-                  </option>
-                ))}
-              </optgroup>
+    <section className="roteiro">
+      <div className="roteiro-cab">
+        <h3>Conversa</h3>
+        <div className="alternar peq" role="tablist" aria-label="Caminho da conversa">
+          {(Object.keys(ROTEIROS) as RotaId[]).map((r) => (
+            <button
+              key={r}
+              role="tab"
+              aria-selected={rota === r}
+              className={rota === r ? "ativo" : ""}
+              onClick={() => alterarLead(lead.id, (l) => ({ ...l, roteiro: r }))}
+            >
+              {ROTEIROS[r].nome}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ol className="passos">
+        {passos.map((p, i) => {
+          const feito = atual.enviados.has(p.msg);
+          return (
+            <li key={p.msg}>
+              <button
+                className={`passo ${feito ? "feito" : ""} ${!extra && i === indice ? "agora" : ""}`}
+                onClick={() => mostrar(i)}
+                aria-current={!extra && i === indice ? "step" : undefined}
+              >
+                <span className="passo-num">{feito ? "✓" : i + 1}</span>
+                <span className="passo-nome">{p.nome}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="passo-card">
+        <div className="passo-topo">
+          <b>{titulo}</b>
+          {!extra && <span>{passos[indice].dica}</span>}
+        </div>
+        <textarea
+          className="msg-texto"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          rows={Math.min(10, texto.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 44)), 1))}
+          aria-label="Texto da mensagem"
+        />
+        <div className="proxima-acoes">
+          <BotaoZap lead={lead} msgId={msgId} texto={texto} rotulo="Enviar no WhatsApp" />
+          <button
+            className="btn"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(texto);
+                avisar("Copiado");
+              } catch {
+                avisar("Não foi possível copiar");
+              }
+            }}
+          >
+            Copiar
+          </button>
+        </div>
+        <div className="passo-saidas">
+          <button className="btn peq" onClick={() => mostrar(null, proximoLembrete(lead))}>Não respondeu</button>
+          <select
+            className="sel peq"
+            value=""
+            onChange={(e) => e.target.value && mostrar(null, e.target.value)}
+            aria-label="Responder uma objeção"
+          >
+            <option value="">Respondeu com objeção...</option>
+            {ETAPAS.find((e) => e.id === "objecoes")!.mensagens.map((m) => (
+              <option key={m.id} value={m.id}>{m.titulo}</option>
             ))}
           </select>
-        </label>
+          <button className="btn peq" onClick={onMensagens}>Todas</button>
+        </div>
       </div>
-      <textarea
-        className="msg-texto"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        rows={Math.min(12, texto.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 46)), 1))}
-        aria-label="Texto da mensagem"
-      />
-      <div className="proxima-acoes">
-        <BotaoZap lead={lead} msgId={msgId} texto={texto} rotulo="Enviar no WhatsApp" />
-        <button
-          className="btn"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(texto);
-              avisar("Mensagem copiada");
-            } catch {
-              avisar("Não foi possível copiar");
-            }
-          }}
-        >
-          Copiar
-        </button>
-        <button className="btn" onClick={onMensagens}>Ver todas</button>
-      </div>
-      {!temWhatsApp(lead) && <p className="dica" style={{ margin: "8px 0 0" }}>Sem telefone com DDD: o WhatsApp vai abrir para você escolher o contato.</p>}
+
       <div className="agenda">
-        <span>Chamar de novo em</span>
+        <span>Chamar de novo</span>
         <input
           type="date"
           value={prox ?? ""}
@@ -207,7 +265,7 @@ function ProximaMensagem({ lead, vendedor, onMensagens }: { lead: Lead; vendedor
           onChange={(e) => alterarLead(lead.id, (l) => ({ ...l, proximoContato: e.target.value || undefined }))}
           aria-label="Data do próximo contato"
         />
-        {prox && prox <= hojeISO() && <span className="tag amarelo">{prox < hojeISO() ? `Era para ${dataCurta(prox)}` : "Hoje"}</span>}
+        {prox && prox <= hojeISO() && <span className="tag amarelo">{prox < hojeISO() ? `Era ${dataCurta(prox)}` : "Hoje"}</span>}
       </div>
     </section>
   );
@@ -267,10 +325,7 @@ function Negocio({ lead }: { lead: Lead }) {
       <div className="preco">
         <span className="preco-rot">Quanto cobrar</span>
         <strong>{reais(preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
-        <small>
-          Faixa de {reais(preco.min)} a {reais(preco.max)} para {servicoPorId(lead.servicoInteresse).nome}
-          {preco.fatores.length ? `. Ajustado por: ${preco.fatores.join(", ")}.` : "."}
-        </small>
+        <small title={preco.fatores.join("\n")}>{reais(preco.min)} a {reais(preco.max)}, {servicoPorId(lead.servicoInteresse).nome}</small>
       </div>
       <div className="negocio-campos">
         {(lead.status === "reuniao" || lead.reuniaoData) && (

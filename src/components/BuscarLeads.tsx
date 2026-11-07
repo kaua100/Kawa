@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { avisar, postar, useIntegracoes } from "@/lib/api";
 import { linkSite, qualificar, type Temperatura } from "@/lib/acoes";
-import { NICHOS_EM_ALTA, POTENCIAL, SEGMENTOS, SERVICOS, TERMO_MAPS, segmentoPorId } from "@/lib/catalogo";
+import { NICHOS_EM_ALTA, POTENCIAL, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
 import { definirApifyToken, novoId, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
@@ -43,7 +43,10 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const avaliados = useMemo(
     () =>
       (encontrados ?? [])
-        .map((e, i) => ({ e, i, q: qualificar({ ...e, segmento: segBusca }) }))
+        .map((e, i) => {
+          const seg = detectarSegmento(e.categoria, e.nome) ?? segBusca;
+          return { e, i, seg, q: qualificar({ ...e, segmento: seg }) };
+        })
         .sort((a, b) => b.q.pontos - a.q.pontos),
     [encontrados, segBusca],
   );
@@ -71,12 +74,12 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
         const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", { runId, token: apifyToken });
         if (r.status === "pronto") {
           const novos = r.encontrados ?? [];
-          setSegBusca(segmento);
+          setSegBusca(detectarSegmento(busca) ?? segmento);
           setEncontrados(novos);
           setMarcados(
             new Set(
               novos
-                .map((e, i) => (!jaCadastrados.has(chave(e.nome, e.telefone)) && qualificar({ ...e, segmento }).temperatura !== "frio" ? i : -1))
+                .map((e, i) => (!jaCadastrados.has(chave(e.nome, e.telefone)) && qualificar({ ...e, segmento: detectarSegmento(e.categoria, e.nome) ?? segmento }).temperatura !== "frio" ? i : -1))
                 .filter((i) => i >= 0),
             ),
           );
@@ -102,7 +105,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
         id: novoId(),
         empresa: e.nome,
         responsavel: "",
-        segmento: segBusca,
+        segmento: detectarSegmento(e.categoria, e.nome) ?? segBusca,
         cidade: e.cidade || local,
         telefone: e.telefone,
         site: e.site,
@@ -153,12 +156,11 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
       <div className="topo">
         <div>
           <h1>Buscar empresas</h1>
-          <p>Encontre negócios no Google Maps e importe os mais quentes direto para a sua lista.</p>
         </div>
       </div>
 
       <section className="nichos" aria-label="Nichos">
-        <h2 className="secao-titulo">Nichos que mais compram site</h2>
+        <h2 className="secao-titulo">Nichos que mais compram</h2>
         <div className="nichos-lista">
           {NICHOS_EM_ALTA.map((s) => (
             <button key={s.id} className={`nicho ${segmento === s.id ? "ativo" : ""}`} onClick={() => escolherNicho(s.id)} aria-pressed={segmento === s.id}>
@@ -184,7 +186,15 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
           </label>
           <label className="campo">
             <span>O que buscar no Maps</span>
-            <input value={busca} onChange={(e) => setBusca(e.target.value)} required />
+            <input
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value);
+                const s = detectarSegmento(e.target.value);
+                if (s) setSegmento(s);
+              }}
+              required
+            />
           </label>
           <label className="campo">
             <span>Cidade ou bairro</span>
@@ -204,7 +214,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
           </label>
           <label className="check" style={{ alignSelf: "end", paddingBottom: 9 }}>
             <input type="checkbox" checked={contatos} onChange={(e) => setContatos(e.target.checked)} />
-            Buscar Instagram e e-mail também (mais lento)
+            Buscar Instagram também
           </label>
         </div>
 
@@ -212,7 +222,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
           <button className="btn prim grande" type="submit" disabled={rodando}>
             {rodando ? `Buscando ${segmentoPorId(segmento).plural}... ${segundos}s` : `Buscar ${segmentoPorId(segmento).plural}`}
           </button>
-          {rodando && <span className="dica">Costuma levar de 1 a 3 minutos. Pode deixar esta tela aberta.</span>}
+          {rodando && <span className="dica">Leva de 1 a 3 minutos</span>}
           {erro && <span className="erro" style={{ margin: 0 }}>{erro}</span>}
         </div>
 
@@ -221,7 +231,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
             <label className="campo">
               <span>Token da Apify</span>
               <input type="password" defaultValue={apifyToken} placeholder="apify_api_..." onBlur={(e) => e.target.value.trim() && definirApifyToken(e.target.value)} autoComplete="off" />
-              <small className="dica">Em apify.com, entre em Settings e copie o token da parte de API. Ele fica salvo só na sua conta.</small>
+
             </label>
           ) : (
             <p className="dica" style={{ margin: 0 }}>
@@ -236,8 +246,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
         <section className="card resultados-card">
           <div className="resultados-cab">
             <div>
-              <h2>{encontrados.length} empresas encontradas</h2>
-              <p className="dica" style={{ margin: 0 }}>Ordenadas da mais quente para a mais fria. As quentes e mornas já vêm marcadas.</p>
+              <h2>{encontrados.length} encontradas</h2>
             </div>
             <button className="btn prim" onClick={importar} disabled={!marcados.size}>
               Importar {marcados.size} {marcados.size === 1 ? "lead" : "leads"}
@@ -262,7 +271,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
             <div className="vazio">Nenhuma empresa com esse filtro.</div>
           ) : (
             <ul className="achados">
-              {lista.map(({ e, i, q }) => {
+              {lista.map(({ e, i, q, seg }) => {
                 const ja = jaCadastrados.has(chave(e.nome, e.telefone));
                 return (
                   <li key={i} className={`achado ${ja ? "ja" : ""} ${marcados.has(i) ? "marcado" : ""}`}>
@@ -276,12 +285,12 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
                         {!e.site && <span className="tag laranja">Sem site</span>}
                         {e.nota !== null && <span className="tag cinza">{String(e.nota).replace(".", ",")} ★ {e.avaliacoes !== null ? `(${e.avaliacoes})` : ""}</span>}
                         {e.telefone ? <span className="tag cinza">{e.telefone}</span> : <span className="tag cinza">Sem telefone</span>}
-                        {ja && <span className="tag azul">Já está na sua lista</span>}
+                        <span className="tag azul">{segmentoPorId(seg).nome}</span>
+                        {ja && <span className="tag azul">Já está na lista</span>}
                       </div>
-                      {q.motivos.length > 0 && <p className="achado-motivos">{q.motivos.join(", ")}</p>}
                     </div>
                     <div className="achado-lado">
-                      <SeloTemperatura dados={{ ...e, segmento: segBusca }} />
+                      <SeloTemperatura dados={{ ...e, segmento: seg }} />
                       <div className="achado-links">
                         {e.mapa && <a className="btn icone" href={e.mapa} target="_blank" rel="noopener noreferrer" title="Abrir no Maps"><IcPino /></a>}
                         {e.site && <a className="btn icone" href={linkSite(e.site)} target="_blank" rel="noopener noreferrer" title="Abrir site"><IcSite /></a>}

@@ -62,7 +62,7 @@ const NAV: { tela: Tela; nome: string; curto: string; Icone: () => React.ReactEl
   { tela: "hoje", nome: "Hoje", curto: "Hoje", Icone: IcHoje },
   { tela: "leads", nome: "Leads", curto: "Leads", Icone: IcLeads },
   { tela: "buscar", nome: "Buscar empresas", curto: "Buscar", Icone: IcBusca },
-  { tela: "central", nome: "Mensagens e roteiros", curto: "Mensagens", Icone: IcMsg },
+  { tela: "central", nome: "Mensagens", curto: "Mensagens", Icone: IcMsg },
   { tela: "resultados", nome: "Resultados", curto: "Resultados", Icone: IcGrafico },
 ];
 
@@ -71,7 +71,7 @@ const TITULO: Record<Tela, string> = {
   leads: "Leads",
   funil: "Funil",
   buscar: "Buscar empresas",
-  central: "Mensagens e roteiros",
+  central: "Mensagens",
   resultados: "Resultados",
 };
 
@@ -123,7 +123,7 @@ function App({ email }: { email: string }) {
     const blob = new Blob([exportarDados()], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `conecta-prospector-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `mindstrat-prospector-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
   };
 
@@ -151,12 +151,9 @@ function App({ email }: { email: string }) {
     <div className="app">
       <aside className="side">
         <div className="marca">
-          <div className="marca-sinal" aria-hidden>
-            <span />
-            <span />
-          </div>
+          <div className="marca-sinal" aria-hidden>M</div>
           <div>
-            <b>Conecta Digital</b>
+            <b>Mindstrat</b>
             <small>Prospector</small>
           </div>
         </div>
@@ -189,7 +186,7 @@ function App({ email }: { email: string }) {
         {rota.tela !== "hoje" ? (
           <button className="voltar" onClick={voltar}><IcVoltar /> Voltar</button>
         ) : (
-          <div className="marca mini"><div className="marca-sinal" aria-hidden><span /><span /></div><b>Conecta Digital</b></div>
+          <div className="marca mini"><div className="marca-sinal" aria-hidden>M</div><b>Mindstrat</b></div>
         )}
         <span className="barra-titulo">{rota.tela !== "hoje" ? TITULO[rota.tela] : ""}</span>
         <button className="sair-mobile" onClick={() => supabase.auth.signOut()} aria-label="Sair da conta"><IcSair /></button>

@@ -52,17 +52,17 @@ export default function Login() {
     <div className="login-fundo">
       <section className="login-lado" aria-hidden={false}>
         <div className="marca">
-          <div className="marca-sinal" aria-hidden><span /><span /></div>
+          <div className="marca-sinal" aria-hidden>M</div>
           <div>
-            <b>Conecta Digital</b>
+            <b>Mindstrat</b>
             <small>Prospector</small>
           </div>
         </div>
         <h2 className="login-frase">Sua prospecção do dia, pronta para enviar.</h2>
         <ul className="login-pontos">
-          <li>Busque no Google Maps as empresas que ainda não têm site.</li>
-          <li>Mande a mensagem certa no WhatsApp com um clique.</li>
-          <li>Veja quantos você chamou, quantas reuniões marcou e quanto fechou.</li>
+          <li>Empresas sem site no Maps</li>
+          <li>Mensagem pronta no WhatsApp</li>
+          <li>Reuniões, fechamentos e faturamento</li>
         </ul>
       </section>
       <form className="login" onSubmit={enviar}>
@@ -70,7 +70,7 @@ export default function Login() {
           {modo === "entrar" ? "Entrar" : modo === "criar" ? "Criar conta" : "Recuperar senha"}
         </h1>
         <p className="dica" style={{ margin: "0 0 18px" }}>
-          {modo === "esqueci" ? "Digite seu e-mail para receber o link de nova senha." : modo === "criar" ? "Seus leads, mensagens e resultados ficam salvos na sua conta." : "Bom te ver de novo."}
+          {modo === "esqueci" ? "Enviamos um link para o seu e-mail." : modo === "criar" ? "Leva 10 segundos." : "Bom te ver de novo."}
         </p>
         <div className="grade">
           <label className="campo">

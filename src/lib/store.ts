@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { detectarSegmento } from "./catalogo";
 import { supabase } from "./supabase";
 import type { Contato, Lead, Script } from "./types";
 
@@ -61,8 +62,26 @@ export async function carregarDados(userId: string) {
     supabase.from("config").select("vendedor, apify_token").maybeSingle(),
   ]);
   erroAoSalvar(l.error ?? s.error ?? c.error);
+  const carregados = (l.data ?? []).map((r) => r.dados as Lead);
+  // Corrige leads importados com o nicho errado (busca feita com outro nicho selecionado).
+  const corrigidos: Lead[] = [];
+  const leads = carregados.map((ld) => {
+    if (ld.origemLead !== "apify") return ld;
+    const cat = ld.infoPublica.match(/categoria no Google: ([^;]+)/)?.[1];
+    const certo = detectarSegmento(cat, ld.empresa);
+    if (certo && certo !== ld.segmento) {
+      const novo = { ...ld, segmento: certo };
+      corrigidos.push(novo);
+      return novo;
+    }
+    return ld;
+  });
+  if (corrigidos.length) {
+    const agora = new Date().toISOString();
+    supabase.from("leads").upsert(corrigidos.map((x) => ({ id: x.id, dados: x, atualizado_em: agora }))).then(({ error }) => erroAoSalvar(error));
+  }
   mudar({
-    leads: (l.data ?? []).map((r) => r.dados as Lead),
+    leads,
     scripts: (s.data ?? []).map((r) => r.dados as Script),
     vendedor: c.data?.vendedor ?? "",
     apifyToken: c.data?.apify_token ?? "",

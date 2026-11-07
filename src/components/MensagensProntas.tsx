@@ -2,23 +2,21 @@
 
 import { useState } from "react";
 import { avisar } from "@/lib/api";
-import { segmentoPorId } from "@/lib/catalogo";
 import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type CtxZap, type MensagemPronta } from "@/lib/prontas";
-import { registrarEnvio } from "@/lib/acoes";
+import { mensagemPorId, registrarEnvio, ROTEIROS, type RotaId } from "@/lib/acoes";
 import { salvarScript, useEstado } from "@/lib/store";
 import type { Lead } from "@/lib/types";
 
 export default function MensagensProntas({ leadInicial, onCadastrar }: { leadInicial: string | null; onCadastrar: () => void }) {
   const { leads, vendedor } = useEstado();
   const [leadId, setLeadId] = useState(leadInicial ?? leads[0]?.id ?? "");
-  const [etapa, setEtapa] = useState(ETAPAS[0].id);
+  const [etapa, setEtapa] = useState<string>("rota:conversa");
   const lead = leads.find((l) => l.id === leadId) ?? null;
 
   if (leads.length === 0) {
     return (
       <div className="card vazio">
-        <p style={{ margin: "0 0 6px", color: "var(--text)" }}>Cadastre um lead para ver as mensagens prontas.</p>
-        <p style={{ margin: "0 0 16px" }}>As mensagens saem preenchidas com o nome, a empresa, a cidade e o segmento de cada lead.</p>
+        <p className="vazio-titulo">Nenhum lead ainda.</p>
         <button className="btn prim" onClick={onCadastrar}>Ir para Leads</button>
       </div>
     );
@@ -26,13 +24,14 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
 
   const ctx = lead ? contextoZap(lead, vendedor) : null;
   const telOk = lead ? !!telefoneWhatsApp(lead.telefone) : false;
-  const et = ETAPAS.find((e) => e.id === etapa)!;
+  const rota = etapa.startsWith("rota:") ? (etapa.slice(5) as RotaId) : null;
+  const et = rota ? null : ETAPAS.find((e) => e.id === etapa)!;
 
   return (
     <>
       <div className="barra-filtros">
         <label className="campo">
-          <span>Para quem vai a mensagem</span>
+          <span>Para quem</span>
           <select value={leadId} onChange={(e) => setLeadId(e.target.value)}>
             {!lead && <option value="">Escolha um lead</option>}
             {leads.map((l) => (
@@ -44,17 +43,14 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
 
       {lead && (
         <>
-          <p className="dica" style={{ marginTop: -6 }}>
-            {segmentoPorId(lead.segmento).nome}, {lead.responsavel ? `fala com ${lead.responsavel.split(" ")[0]}` : "sem nome do responsável (a mensagem começa com \"Oi, tudo bem?\")"}, {telOk ? `WhatsApp ${lead.telefone}` : "sem telefone válido"}
-          </p>
-          {!telOk && (
-            <div className="aviso">
-              Este lead não tem telefone válido. O botão vai abrir o WhatsApp para você escolher o contato. Para ir direto, cadastre o número com DDD.
-            </div>
-          )}
-          {!vendedor && <div className="aviso">Preencha seu nome no menu lateral para ele entrar nas mensagens.</div>}
+          {!telOk && <div className="aviso">Sem número com DDD: o WhatsApp vai pedir o contato.</div>}
 
           <div className="chips">
+            {(Object.keys(ROTEIROS) as RotaId[]).map((r) => (
+              <button key={r} className={`chip rota ${etapa === `rota:${r}` ? "ativo" : ""}`} onClick={() => setEtapa(`rota:${r}`)}>
+                Passo a passo: {ROTEIROS[r].nome.toLowerCase()}
+              </button>
+            ))}
             {ETAPAS.map((e) => (
               <button key={e.id} className={`chip ${e.id === etapa ? "ativo" : ""}`} onClick={() => setEtapa(e.id)}>
                 {e.nome}
@@ -62,11 +58,29 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
             ))}
           </div>
 
-          <div className="grade-msgs">
-            {et.mensagens.map((m) => (
-              <CardMensagem key={`${lead.id}:${m.id}:${vendedor}`} m={m} ctx={ctx!} lead={lead} etapaNome={et.nome} />
-            ))}
-          </div>
+          {rota ? (
+            <ol className="passo-lista">
+              {ROTEIROS[rota].passos.map((p, i) => {
+                const { etapa: e, msg } = mensagemPorId(p.msg);
+                return (
+                  <li key={p.msg}>
+                    <div className="passo-lista-cab">
+                      <span className="passo-num">{i + 1}</span>
+                      <b>{p.nome}</b>
+                      <span>{p.dica}</span>
+                    </div>
+                    <CardMensagem key={`${lead.id}:${p.msg}:${vendedor}`} m={msg} ctx={ctx!} lead={lead} etapaNome={e.nome} />
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="grade-msgs">
+              {et!.mensagens.map((m) => (
+                <CardMensagem key={`${lead.id}:${m.id}:${vendedor}`} m={m} ctx={ctx!} lead={lead} etapaNome={et!.nome} />
+              ))}
+            </div>
+          )}
         </>
       )}
     </>
@@ -113,7 +127,6 @@ function CardMensagem({ m, ctx, lead, etapaNome }: { m: MensagemPronta; ctx: Ctx
     <div className="card msg">
       <div className="msg-topo">
         <b>{m.titulo}</b>
-        {m.quando && <small>{m.quando}</small>}
       </div>
       <textarea className="msg-texto" value={texto} onChange={(e) => setTexto(e.target.value)} rows={Math.min(18, texto.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 40)), 1))} />
       <div className="script-acoes">

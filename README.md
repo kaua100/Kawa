@@ -1,4 +1,4 @@
-# Conecta Digital Prospector
+# Mindstrat Prospector
 
 CRM de prospecção com login, mensagens prontas para enviar no WhatsApp, busca de empresas no Google Maps (Apify) e roteiros comerciais por segmento.
 

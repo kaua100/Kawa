@@ -11,7 +11,7 @@ export interface CtxZap {
   oi: string; // "Oi, Marina, tudo bem?" ou "Oi, tudo bem?"
   vc: string; // ", Marina" ou ""
   nome: string;
-  euSou: string; // "Aqui é Kaua, da Conecta Digital" ou "Aqui é da Conecta Digital"
+  euSou: string; // "Aqui é Kaua, da Mindstrat" ou "Aqui é da Mindstrat"
   empresa: string;
   cidade: string;
   seg: Segmento;
@@ -22,6 +22,9 @@ export interface CtxZap {
   siteStatus: Lead["siteStatus"];
   linkDemo: string;
   quandoReuniao: string; // " sábado, 14/11, às 10h" ou " no horário que combinamos"
+  saudacao: string; // "Bom dia", "Boa tarde" ou "Boa noite"
+  nota: number | null;
+  avaliacoes: number | null;
 }
 
 export function contextoZap(lead: Lead, vendedor: string): CtxZap {
@@ -31,7 +34,7 @@ export function contextoZap(lead: Lead, vendedor: string): CtxZap {
     oi: nome ? `Oi, ${nome}, tudo bem?` : "Oi, tudo bem?",
     vc: nome ? `, ${nome}` : "",
     nome,
-    euSou: vendedor.trim() ? `Aqui é ${vendedor.trim()}, da Conecta Digital` : "Aqui é da Conecta Digital",
+    euSou: vendedor.trim() ? `Aqui é ${vendedor.trim()}, da Mindstrat` : "Aqui é da Mindstrat",
     empresa: lead.empresa,
     cidade: lead.cidade.split("/")[0].trim(),
     seg: segmentoPorId(lead.segmento),
@@ -42,7 +45,25 @@ export function contextoZap(lead: Lead, vendedor: string): CtxZap {
     siteStatus: lead.site ? lead.siteStatus : "nao-encontrado",
     linkDemo: (lead.linkDemo || "").trim(),
     quandoReuniao: lead.reuniaoData ? ` ${quando(lead.reuniaoData)}` : " no horário que combinamos",
+    saudacao: saudacaoAgora(),
+    ...notaGoogle(lead),
   };
+}
+
+function saudacaoAgora() {
+  const h = new Date().getHours();
+  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+}
+
+function notaGoogle(lead: Lead) {
+  let nota = lead.nota ?? null;
+  let avaliacoes = lead.avaliacoes ?? null;
+  const m = lead.infoPublica?.match(/Nota (\d[.,]\d)[^0-9]*?(?:com (\d+) avalia)?/i);
+  if (m) {
+    nota ??= Number(m[1].replace(",", "."));
+    if (m[2]) avaliacoes ??= Number(m[2]);
+  }
+  return { nota, avaliacoes };
 }
 
 function quando(dt: string) {
@@ -54,6 +75,7 @@ function quando(dt: string) {
   return `${dia}, às ${h}h${m ? String(m).padStart(2, "0") : ""}`;
 }
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const daCidade = (c: CtxZap) => (c.cidade ? ` aqui de ${c.cidade}` : "");
 
@@ -79,13 +101,46 @@ export interface Etapa {
 
 export const ETAPAS: Etapa[] = [
   {
-    id: "primeira",
-    nome: "Primeira mensagem",
+    id: "inicio",
+    nome: "Começar a conversa",
     mensagens: [
       {
+        id: "inicio-ola",
+        titulo: "Só um oi",
+        quando: "",
+        categoria: "whatsapp",
+        texto: (c) =>
+          c.nome
+            ? `${c.saudacao}, ${c.nome}, tudo bem?`
+            : `${c.saudacao}, tudo bem?\n\nFalo com o responsável por ${c.empresa}?`,
+      },
+      {
+        id: "inicio-apresentando",
+        titulo: "Oi e quem é você",
+        quando: "",
+        categoria: "whatsapp",
+        texto: (c) => `${c.saudacao}, tudo bem? ${c.euSou}.
+
+${c.nome ? `Falo com ${c.nome}?` : `Falo com o responsável por ${c.empresa}?`}`,
+      },
+      {
+        id: "inicio-elogio",
+        titulo: "Oi com elogio",
+        quando: "",
+        categoria: "whatsapp",
+        texto: (c) =>
+          c.nota && c.nota >= 4.5
+            ? `${c.saudacao}, tudo bem? Vi ${c.empresa} no Google, nota ${String(c.nota).replace(".", ",")}${c.avaliacoes ? ` com ${c.avaliacoes} avaliações` : ""}. Parabéns pelo trabalho.
+
+${c.nome ? `Falo com ${c.nome}?` : "Você é o responsável?"}`
+            : `${c.saudacao}, tudo bem? Encontrei ${c.empresa} procurando ${c.seg.plural}${daCidade(c)} e gostei do que vi.
+
+${c.nome ? `Falo com ${c.nome}?` : "Você é o responsável?"}`,
+      },
+      {
         id: "primeira-direta",
-        titulo: "Direta",
-        quando: "Para quem não conhece você. Curta e já diz o motivo.",
+        titulo: "Direto ao ponto",
+        quando: "",
         categoria: "whatsapp",
         texto: (c) => `${c.oi} ${c.euSou}.
 
@@ -93,33 +148,47 @@ Pesquisei ${c.empresa} no Google e ${sobreSite(c)}. Eu faço sites para ${c.seg.
 
 Posso te mostrar uma ideia rápida de como ficaria o de vocês?`,
       },
+    ],
+  },
+  {
+    id: "gancho",
+    nome: "Depois que responder",
+    mensagens: [
       {
-        id: "primeira-pergunta",
-        titulo: "Começando com pergunta",
-        quando: "Abre conversa com uma pergunta fácil de responder.",
+        id: "gancho-site",
+        titulo: "Puxar o assunto do site",
+        quando: "",
         categoria: "whatsapp",
-        texto: (c) => `${c.oi} ${c.euSou}.
+        texto: (c) =>
+          c.siteStatus === "nao-encontrado"
+            ? `Que bom! Eu estava vendo ${c.empresa} no Google e reparei que vocês ainda não têm site.
 
-Uma pergunta rápida: ${minuscula(c.seg.gancho.replaceAll("{cidade}", c.cidade || "na cidade"))}
-
-Pergunto porque trabalho com ${c.seg.plural} e tenho uma ideia que pode ajudar vocês nisso.`,
+Foi uma escolha de vocês ou ainda não deu tempo de fazer?`
+            : c.siteStatus === "desatualizado"
+              ? `Que bom! Eu estava vendo o site de ${c.empresa}. Faz tempo que ele foi feito?`
+              : `Que bom! Eu estava vendo o site de ${c.empresa}. Ele tem trazido cliente novo ou é mais para quem já conhece vocês?`,
       },
       {
-        id: "primeira-segmento",
-        titulo: "Pela dor do segmento",
-        quando: "Mostra que você entende o dia a dia do negócio.",
+        id: "gancho-clientes",
+        titulo: "Perguntar de onde vêm os clientes",
+        quando: "",
         categoria: "whatsapp",
-        texto: (c) => `${c.oi} ${c.euSou}.
+        texto: (c) => `Que bom! Uma curiosidade: hoje os ${c.seg.clientes} novos chegam mais por indicação, pelo Instagram ou pelo Google?`,
+      },
+      {
+        id: "gancho-ideia",
+        titulo: "Mostrar a ideia",
+        quando: "",
+        categoria: "whatsapp",
+        texto: (c) => `Pergunto porque eu faço sites para ${c.seg.plural}${daCidade(c)}. ${cap(c.seg.argumentos[0])}.
 
-Trabalho com ${c.seg.plural} e uma coisa que vejo sempre é que ${c.seg.dores[0]}.
-
-Pensei em ${c.umServico} para ${c.empresa} que ajuda nisso. Posso te mandar a ideia?`,
+Posso te mostrar como ficaria o de vocês? Sem compromisso.`,
       },
     ],
   },
   {
     id: "resposta",
-    nome: "Quando a pessoa responder",
+    nome: "Quando pedir detalhes",
     mensagens: [
       {
         id: "resposta-explicar",

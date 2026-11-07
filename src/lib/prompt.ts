@@ -1,9 +1,9 @@
 import { canalNome, categoriaPorId, ESTILOS, segmentoPorId, servicoPorId, STATUS, TIPOS_CONTATO } from "./catalogo";
 import type { Canal, PedidoGeracao } from "./types";
 
-export const SYSTEM_PROMPT = `Você escreve roteiros comerciais para a Conecta Digital, empresa brasileira que vende sites, landing pages, lojas virtuais, sistemas de agendamento e gestão de tráfego pago para negócios locais.
+export const SYSTEM_PROMPT = `Você escreve roteiros comerciais para a Mindstrat, empresa brasileira que vende sites, landing pages, lojas virtuais, sistemas de agendamento e gestão de tráfego pago para negócios locais.
 
-Quem vai usar o texto é o vendedor da Conecta Digital, falando com o dono ou responsável de um negócio local.
+Quem vai usar o texto é o vendedor da Mindstrat, falando com o dono ou responsável de um negócio local.
 
 REGRAS DE ESCRITA
 - Português do Brasil, do jeito que um vendedor experiente e educado fala de verdade.

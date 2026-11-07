@@ -593,3 +593,38 @@ export const segmentoPorId = (id: SegmentoId) => SEGMENTOS.find((s) => s.id === 
 export const servicoPorId = (id: ServicoId) => SERVICOS.find((s) => s.id === id)!;
 export const categoriaPorId = (id: CategoriaId) => CATEGORIAS.find((c) => c.id === id)!;
 export const canalNome = (id: Canal) => CANAIS.find((c) => c.id === id)?.nome ?? id;
+
+/**
+ * Descobre o nicho pela categoria do Google Maps ou pelo nome da empresa.
+ * Evita mensagem falando de dentista para uma barbearia quando a busca foi feita com outro nicho selecionado.
+ */
+const PISTAS: [SegmentoId, RegExp][] = [
+  ["barbearia", /barbear|barber/i],
+  ["clinica-estetica", /est[eé]tica (facial|corporal)|cl[ií]nica de est[eé]tica|esteticista|depila|harmoniza|spa\b|sobrancelha|c[ií]lios|micropigment/i],
+  ["estetica-automotiva", /est[eé]tica automotiva|detail|lava.?r[aá]pido|lava.?jato|polimento|envelopament|insulfilm|car ?wash/i],
+  ["odontologia", /dent|odonto|ortodon|implante dent/i],
+  ["psicologia", /psic[oó]log|psicoterap|terapeuta/i],
+  ["nutricionista", /nutri/i],
+  ["fisioterapia", /fisio|pilates|rpg|quiropra|osteopat/i],
+  ["clinica-medica", /m[eé]dic|cl[ií]nica (geral|popular)|pediatr|ginecolog|dermatolog|cardiolog|ortoped|oftalmo|laborat/i],
+  ["petshop", /pet|veterin|banho e tosa|animal/i],
+  ["advocacia", /advoc|advogad|jur[ií]dic/i],
+  ["contabilidade", /cont[aá]bil|contador|contabilidade/i],
+  ["imobiliaria", /imobili|corretor de im[oó]veis/i],
+  ["energia-solar", /solar|fotovolt/i],
+  ["construcao", /constru|reforma|empreiteir|engenharia|arquitet|marmoraria|serralheria|vidra[cç]aria/i],
+  ["buffet", /buffet|bufê|sal[aã]o de festa|festa infantil|eventos/i],
+  ["pousada", /pousada|hotel|hostel|chal[eé]/i],
+  ["academia", /academia|crossfit|muscula|fitness|lutas|jiu|muay/i],
+  ["transportadora", /transport|frete|mudan[cç]a|log[ií]stica/i],
+  ["oficina", /mec[aâ]nic|oficina|auto ?center|funilaria|borracharia|auto el[eé]tric/i],
+  ["salao", /sal[aã]o|cabeleire|beleza|manicure|unha|hair/i],
+  ["restaurante", /restaurante|pizzar|lanchonete|hamburg|a[cç]a[ií]|padaria|confeitaria|sushi|churrasc|marmit|bar\b|cafeteria|doceria/i],
+];
+
+export function detectarSegmento(...textos: (string | undefined)[]): SegmentoId | null {
+  const t = textos.filter(Boolean).join(" ");
+  if (!t) return null;
+  for (const [id, re] of PISTAS) if (re.test(t)) return id;
+  return null;
+}
