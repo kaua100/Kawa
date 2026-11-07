@@ -325,6 +325,9 @@ function Negocio({ lead }: { lead: Lead }) {
       <div className="preco">
         <span className="preco-rot">Quanto cobrar</span>
         <strong>{reais(preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
+        <span className={`pot pot-${preco.potencial}`} title={preco.fatores.join("\n")}>
+          Potencial {preco.potencial === "medio" ? "médio" : preco.potencial}
+        </span>
         <small title={preco.fatores.join("\n")}>{reais(preco.min)} a {reais(preco.max)}, {servicoPorId(lead.servicoInteresse).nome}</small>
       </div>
       <div className="negocio-campos">

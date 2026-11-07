@@ -313,13 +313,13 @@ export const qualificarLead = (l: Lead) => qualificar(l);
 
 /* ---------- Sugestão de preço ---------- */
 
-/** Faixa de preço de partida por serviço (R$), pensando em freelancer ou agência pequena. */
+/** Faixa de preço por serviço (R$). Tudo entre R$ 700 e R$ 3.000. */
 export const PRECO_BASE: Record<Lead["servicoInteresse"], { min: number; max: number; mensal?: boolean; nota: string }> = {
-  "landing-page": { min: 900, max: 1800, nota: "landing page de uma página" },
-  site: { min: 1500, max: 3500, nota: "site institucional de 4 a 6 páginas" },
-  "loja-virtual": { min: 3000, max: 7000, nota: "loja virtual com pagamento online" },
-  sistema: { min: 2500, max: 6000, nota: "agenda online com painel" },
-  "trafego-pago": { min: 800, max: 2000, mensal: true, nota: "gestão mensal, sem a verba de anúncios" },
+  "landing-page": { min: 700, max: 1500, nota: "landing page" },
+  site: { min: 900, max: 2500, nota: "site institucional" },
+  "loja-virtual": { min: 1500, max: 3000, nota: "loja virtual" },
+  sistema: { min: 1200, max: 3000, nota: "agenda online" },
+  "trafego-pago": { min: 700, max: 1500, mensal: true, nota: "gestão mensal de anúncios" },
 };
 
 const CIDADES_GRANDES = [
@@ -330,43 +330,51 @@ const CIDADES_GRANDES = [
   "são luís", "teresina", "campo grande", "cuiabá", "aracaju",
 ];
 
+export type NivelPotencial = "alto" | "medio" | "baixo";
+
 export interface Preco {
   sugerido: number;
   min: number;
   max: number;
   mensal: boolean;
+  potencial: NivelPotencial;
   fatores: string[];
 }
 
 const arredondar = (v: number) => Math.round(v / 50) * 50;
 
 /**
- * Quanto cobrar por esse lead. Parte da faixa do serviço e ajusta pelo nicho (ticket do negócio),
- * pela cidade e pelo tamanho do negócio no Google. É uma referência para começar a conversa.
+ * Quanto cobrar por esse lead, entre R$ 700 e R$ 3.000.
+ * O potencial (0 a 100%) posiciona o preço dentro da faixa do serviço:
+ * nicho, cidade grande, tamanho do negócio no Google, reputação e Instagram.
  */
 export function sugerirPreco(lead: Lead): Preco {
   const base = PRECO_BASE[lead.servicoInteresse];
   const fatores: string[] = [];
-  let f = 1;
-  const pot = POTENCIAL[lead.segmento] ?? 2;
-  if (pot === 3) { f *= 1.2; fatores.push("nicho de ticket alto (+20%)"); }
-  if (pot === 1) { f *= 0.85; fatores.push("nicho de ticket menor (-15%)"); }
+  let pot = 0.1;
 
-  const cidade = lead.cidade.toLowerCase();
-  if (CIDADES_GRANDES.some((c) => cidade.includes(c))) { f *= 1.15; fatores.push("cidade grande (+15%)"); }
+  const nicho = POTENCIAL[lead.segmento] ?? 2;
+  if (nicho === 3) { pot += 0.35; fatores.push("nicho de ticket alto"); }
+  else if (nicho === 2) { pot += 0.2; fatores.push("nicho de ticket médio"); }
+  else { pot += 0.05; fatores.push("nicho de ticket baixo"); }
+
+  if (CIDADES_GRANDES.some((c) => lead.cidade.toLowerCase().includes(c))) { pot += 0.15; fatores.push("cidade grande"); }
 
   const { avaliacoes, nota } = lerGoogle(lead);
-  if (avaliacoes !== null && avaliacoes >= 150) { f *= 1.2; fatores.push("negócio grande no Google (+20%)"); }
-  else if (avaliacoes !== null && avaliacoes >= 50) { f *= 1.1; fatores.push("negócio movimentado (+10%)"); }
-  else if (avaliacoes !== null && avaliacoes < 10) { f *= 0.9; fatores.push("negócio pequeno ou novo (-10%)"); }
-  if (nota !== null && nota >= 4.7 && (avaliacoes ?? 0) >= 30) { f *= 1.05; fatores.push("reputação forte (+5%)"); }
+  if (avaliacoes !== null && avaliacoes >= 150) { pot += 0.25; fatores.push(`${avaliacoes} avaliações`); }
+  else if (avaliacoes !== null && avaliacoes >= 50) { pot += 0.15; fatores.push(`${avaliacoes} avaliações`); }
+  else if (avaliacoes !== null && avaliacoes >= 10) pot += 0.05;
+  if (nota !== null && nota >= 4.7 && (avaliacoes ?? 0) >= 30) { pot += 0.1; fatores.push("ótima reputação"); }
+  if (lead.instagram) pot += 0.05;
 
-  const meio = (base.min + base.max) / 2;
+  pot = Math.max(0, Math.min(1, pot));
+  const sugerido = Math.min(3000, Math.max(700, arredondar(base.min + (base.max - base.min) * pot)));
   return {
-    sugerido: arredondar(meio * f),
-    min: arredondar(base.min * f),
-    max: arredondar(base.max * f),
+    sugerido,
+    min: base.min,
+    max: base.max,
     mensal: Boolean(base.mensal),
+    potencial: pot >= 0.65 ? "alto" : pot >= 0.35 ? "medio" : "baixo",
     fatores,
   };
 }
