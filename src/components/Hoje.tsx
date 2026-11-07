@@ -71,7 +71,7 @@ function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => voi
 
   return (
     <li
-      className={`cartao-lead m-${motivo}`}
+      className={`cartao-lead f-${faseDoLead(lead)}`}
       role="button"
       tabIndex={0}
       onClick={() => onAbrir(lead.id)}
@@ -83,16 +83,19 @@ function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => voi
           <b>{lead.empresa}</b>
           <small>{segmentoPorId(lead.segmento).nome}{lead.cidade ? `, ${lead.cidade.split("/")[0]}` : ""}</small>
         </div>
-        <strong className="cl-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
+        <div className="cl-direita">
+            <strong className="cl-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
+            <SeloTemperatura lead={lead} soBarras />
+          </div>
       </div>
       <BarraFases lead={lead} />
-      <div className="cl-meio">
+          <div className="cl-base">
+            <div className="cl-status">
         <span className="cl-fase">{FASES[faseDoLead(lead)].nome}</span>
         <span className={`cl-fazer p-${oQueFazer(lead).tipo}`}>{oQueFazer(lead).texto}</span>
-            <SeloTemperatura lead={lead} soBarras />
-      </div>
-      <div className="cl-acoes">
-        <BotaoZap lead={lead} rotulo={oQueFazer(lead).tipo === "lembrete" ? "Enviar lembrete" : `Enviar: ${msg.titulo.replaceAll('"', "")}`} />
+            </div>
+            <div className="cl-acoes">
+        <BotaoZap lead={lead} compacto />
         <BotaoMaps lead={lead} compacto />
         <button
           className="btn icone"
@@ -105,7 +108,8 @@ function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => voi
         >
           <IcAmanha />
         </button>
-      </div>
+            </div>
+          </div>
     </li>
   );
 }

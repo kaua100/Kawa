@@ -1,9 +1,12 @@
 const base = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
 
 export const IcZap = () => (
-  <svg {...base}>
-    <path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2L4 20z" />
-    <path d="M9.5 9.5c.3 1.6 1.4 3.3 3 4.4.6.4 1.3.6 1.9.6l.9-.9-1.4-1-.8.5a5 5 0 0 1-2.2-2.2l.5-.8-1-1.4-.9.8z" fill="currentColor" stroke="none" />
+  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 2.6a9.4 9.4 0 0 0-8.1 14.2L2.6 21.4l4.7-1.2A9.4 9.4 0 1 0 12 2.6z" fill="currentColor" />
+    <path
+      d="M8.6 7.4c.3-.3.8-.3 1 .1l1 1.7c.2.4.1.8-.2 1.1l-.6.5a6 6 0 0 0 3.3 3.3l.5-.6c.3-.3.7-.4 1.1-.2l1.7 1c.4.2.4.7.1 1l-.8.8c-.6.6-1.5.8-2.3.5a9.6 9.6 0 0 1-5.4-5.4c-.3-.8-.1-1.7.5-2.3z"
+      fill="var(--zap-icone, #19a34a)"
+    />
   </svg>
 );
 export const IcPino = () => (
