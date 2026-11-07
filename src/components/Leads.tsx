@@ -2,43 +2,29 @@
 
 import { useMemo, useState } from "react";
 import { avisar } from "@/lib/api";
-import { SEGMENTOS, SERVICOS, STATUS, TIPOS_CONTATO, segmentoPorId, servicoPorId } from "@/lib/catalogo";
-import { adicionarContato, excluirContato, excluirLead, novoId, salvarLead, useEstado } from "@/lib/store";
-import type { Lead, TipoContato } from "@/lib/types";
-import ScriptCard from "./ScriptCard";
+import { dataCurta, hojeISO, proximoEfetivo, qualificar, reais, sugerirPreco } from "@/lib/acoes";
+import { SEGMENTOS, STATUS, segmentoPorId } from "@/lib/catalogo";
+import { salvarLead, useEstado } from "@/lib/store";
+import type { Lead, StatusLead } from "@/lib/types";
+import { BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
+import FormLead, { leadVazio } from "./FormLead";
 
-const leadVazio = (): Lead => ({
-  id: novoId(),
-  empresa: "",
-  responsavel: "",
-  segmento: "odontologia",
-  cidade: "",
-  telefone: "",
-  site: "",
-  siteStatus: "nao-encontrado",
-  instagram: "",
-  seguidores: "",
-  infoPublica: "",
-  servicoInteresse: "site",
-  status: "novo",
-  contatos: [],
-  criadoEm: new Date().toISOString(),
-});
+type Visao = "lista" | "funil";
 
 interface Props {
-  selecionado: string | null;
-  setSelecionado: (id: string | null) => void;
-  onGerar: (leadId: string) => void;
-  onZap: (leadId: string) => void;
+  onAbrir: (leadId: string) => void;
   onBuscar: () => void;
-  temIA: boolean;
+  visaoInicial?: Visao;
 }
 
-export default function Leads({ selecionado, setSelecionado, onGerar, onZap, onBuscar, temIA }: Props) {
-  const { leads, scripts } = useEstado();
+export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Props) {
+  const { leads } = useEstado();
+  const [visao, setVisao] = useState<Visao>(visaoInicial);
   const [busca, setBusca] = useState("");
   const [filtroSeg, setFiltroSeg] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [soSemSite, setSoSemSite] = useState(false);
+  const [ordem, setOrdem] = useState<"quentes" | "recentes" | "proximo" | "valor">("quentes");
   const [formulario, setFormulario] = useState<Lead | null>(null);
 
   const filtrados = useMemo(
@@ -47,93 +33,70 @@ export default function Leads({ selecionado, setSelecionado, onGerar, onZap, onB
         (l) =>
           (!busca || `${l.empresa} ${l.cidade} ${l.responsavel}`.toLowerCase().includes(busca.toLowerCase())) &&
           (!filtroSeg || l.segmento === filtroSeg) &&
-          (!filtroStatus || l.status === filtroStatus),
-      ),
-    [leads, busca, filtroSeg, filtroStatus],
+          (visao === "funil" || !filtroStatus || l.status === filtroStatus) &&
+          (!soSemSite || !l.site),
+      ).sort((a, b) => {
+        if (ordem === "recentes") return b.criadoEm.localeCompare(a.criadoEm);
+        if (ordem === "proximo") return (proximoEfetivo(a) ?? "9999").localeCompare(proximoEfetivo(b) ?? "9999");
+        if (ordem === "valor") return (b.valor ?? sugerirPreco(b).sugerido) - (a.valor ?? sugerirPreco(a).sugerido);
+        return qualificar(b).pontos - qualificar(a).pontos;
+      }),
+    [leads, busca, filtroSeg, filtroStatus, soSemSite, visao, ordem],
   );
-
-  const lead = leads.find((l) => l.id === selecionado) ?? null;
-  const scriptsDoLead = lead ? scripts.filter((s) => s.leadId === lead.id) : [];
 
   return (
     <>
       <div className="topo">
         <div>
           <h1>Leads</h1>
-          <p>{leads.length} {leads.length === 1 ? "empresa cadastrada" : "empresas cadastradas"}</p>
+          <p>{leads.length} {leads.length === 1 ? "empresa" : "empresas"} na sua carteira</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn" onClick={onBuscar}>Buscar no Google Maps</button>
-          <button className="btn prim" onClick={() => setFormulario(leadVazio())}>+ Novo lead</button>
+        <div className="topo-acoes">
+          <div className="alternar" role="tablist" aria-label="Forma de ver os leads">
+            <button role="tab" aria-selected={visao === "lista"} className={visao === "lista" ? "ativo" : ""} onClick={() => setVisao("lista")}>Lista</button>
+            <button role="tab" aria-selected={visao === "funil"} className={visao === "funil" ? "ativo" : ""} onClick={() => setVisao("funil")}>Funil</button>
+          </div>
+          <button className="btn" onClick={onBuscar}>Buscar no Maps</button>
+          <button className="btn prim" onClick={() => setFormulario(leadVazio())}>Novo lead</button>
         </div>
       </div>
 
       {leads.length === 0 ? (
         <div className="card vazio">
-          <p style={{ fontSize: 16, color: "var(--text)", margin: "0 0 6px" }}>Nenhum lead cadastrado ainda.</p>
-          <p style={{ margin: "0 0 18px" }}>Cadastre a primeira empresa que você vai prospectar. Os dados dela alimentam os scripts da IA.</p>
+          <p className="vazio-titulo">Sua carteira está vazia.</p>
+          <p>Busque empresas da sua cidade no Google Maps ou cadastre uma que você já conhece.</p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="btn prim" onClick={() => setFormulario(leadVazio())}>Cadastrar primeiro lead</button>
-            <button className="btn" onClick={onBuscar}>Buscar empresas no Google Maps</button>
+            <button className="btn prim" onClick={onBuscar}>Buscar empresas no Maps</button>
+            <button className="btn" onClick={() => setFormulario(leadVazio())}>Cadastrar manualmente</button>
           </div>
         </div>
       ) : (
-        <div className="leads-layout">
-          <div className="card">
-            <div className="filtros">
-              <input className="sel" placeholder="Buscar empresa, cidade..." value={busca} onChange={(e) => setBusca(e.target.value)} />
-              <select className="sel" value={filtroSeg} onChange={(e) => setFiltroSeg(e.target.value)}>
-                <option value="">Todos os segmentos</option>
-                {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-              </select>
-              <select className="sel" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-                <option value="">Todos os status</option>
+        <>
+          <div className="filtros-barra">
+            <input className="sel" placeholder="Buscar empresa, cidade ou responsável" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
+            <select className="sel" value={filtroSeg} onChange={(e) => setFiltroSeg(e.target.value)} aria-label="Segmento">
+              <option value="">Todos os segmentos</option>
+              {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+            {visao === "lista" && (
+              <select className="sel" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Etapa">
+                <option value="">Todas as etapas</option>
                 {STATUS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
               </select>
-            </div>
-            <div className="lista-leads">
-              {filtrados.length === 0 && <div className="vazio">Nenhum lead com esses filtros.</div>}
-              {filtrados.map((l) => (
-                <button key={l.id} className={`lead-item ${l.id === selecionado ? "ativo" : ""}`} onClick={() => setSelecionado(l.id)}>
-                  <span>
-                    <b>{l.empresa}</b>
-                    <small>{segmentoPorId(l.segmento).nome}{l.cidade ? ` · ${l.cidade}` : ""}</small>
-                  </span>
-                  <span className={`tag ${l.status === "perdido" ? "cinza" : ""}`} style={{ alignSelf: "center" }}>
-                    {STATUS.find((s) => s.id === l.status)?.nome}
-                  </span>
-                </button>
-              ))}
-            </div>
+            )}
+            <select className="sel" value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} aria-label="Ordenar">
+              <option value="quentes">Mais quentes primeiro</option>
+              <option value="valor">Maior valor primeiro</option>
+              <option value="proximo">Próximo contato</option>
+              <option value="recentes">Mais recentes</option>
+            </select>
+            <label className="check">
+              <input type="checkbox" checked={soSemSite} onChange={(e) => setSoSemSite(e.target.checked)} />
+              Só quem não tem site
+            </label>
           </div>
-
-          {lead ? (
-            <DetalheLead
-              lead={lead}
-              scriptsCount={scriptsDoLead.length}
-              onEditar={() => setFormulario(lead)}
-              onGerar={() => onGerar(lead.id)}
-              onZap={() => onZap(lead.id)}
-              temIA={temIA}
-              onExcluir={() => {
-                if (confirm(`Excluir ${lead.empresa}? O histórico de contatos será apagado.`)) {
-                  excluirLead(lead.id);
-                  setSelecionado(null);
-                }
-              }}
-            >
-              {scriptsDoLead.length > 0 && (
-                <div className="pilha" style={{ marginTop: 20 }}>
-                  <h3 style={{ margin: 0, fontSize: 15 }}>Scripts deste lead</h3>
-                  {scriptsDoLead.slice(0, 3).map((s) => <ScriptCard key={s.id} script={s} temIA={temIA} />)}
-                  {scriptsDoLead.length > 3 && <p className="dica">Os demais estão em Central de Abordagem › Histórico.</p>}
-                </div>
-              )}
-            </DetalheLead>
-          ) : (
-            <div className="card vazio">Selecione um lead para ver os detalhes e gerar uma abordagem.</div>
-          )}
-        </div>
+          {visao === "lista" ? <Lista leads={filtrados} onAbrir={onAbrir} /> : <Funil leads={filtrados} onAbrir={onAbrir} />}
+        </>
       )}
 
       {formulario && (
@@ -142,9 +105,9 @@ export default function Leads({ selecionado, setSelecionado, onGerar, onZap, onB
           onFechar={() => setFormulario(null)}
           onSalvar={(l) => {
             salvarLead(l);
-            setSelecionado(l.id);
             setFormulario(null);
             avisar("Lead salvo");
+            onAbrir(l.id);
           }}
         />
       )}
@@ -152,179 +115,122 @@ export default function Leads({ selecionado, setSelecionado, onGerar, onZap, onB
   );
 }
 
-function DetalheLead({
-  lead,
-  onEditar,
-  onGerar,
-  onZap,
-  temIA,
-  onExcluir,
-  children,
-}: {
-  lead: Lead;
-  scriptsCount: number;
-  onEditar: () => void;
-  onGerar: () => void;
-  onZap: () => void;
-  temIA: boolean;
-  onExcluir: () => void;
-  children?: React.ReactNode;
-}) {
-  const [tipo, setTipo] = useState<TipoContato>("ligacao");
-  const [resumo, setResumo] = useState("");
+function Proximo({ lead }: { lead: Lead }) {
+  const p = proximoEfetivo(lead);
+  if (!p) return null;
+  const h = hojeISO();
+  if (p < h) return <span className="tag vermelho">Atrasado</span>;
+  if (p === h) return <span className="tag amarelo">Hoje</span>;
+  return <span className="tag cinza">{dataCurta(p)}</span>;
+}
 
-  const registrar = () => {
-    if (!resumo.trim()) return;
-    adicionarContato(lead.id, { data: new Date().toISOString(), tipo, resumo: resumo.trim() });
-    setResumo("");
-  };
-
+function Lista({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => void }) {
+  if (leads.length === 0) return <div className="card vazio">Nenhum lead com esses filtros.</div>;
   return (
-    <div>
-      <div className="card pad">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>{lead.empresa}</h2>
-            <span className="dica">{segmentoPorId(lead.segmento).nome}{lead.cidade ? ` · ${lead.cidade}` : ""}</span>
+    <div className="card lista">
+      {leads.map((l) => (
+        <div
+          key={l.id}
+          className="linha"
+          role="button"
+          tabIndex={0}
+          onClick={() => onAbrir(l.id)}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onAbrir(l.id))}
+        >
+          <div className="linha-info">
+            <b>{l.empresa}</b>
+            <small>
+              {segmentoPorId(l.segmento).nome}
+              {l.cidade ? ` em ${l.cidade}` : ""}
+              {!l.site ? ", sem site" : ""}
+            </small>
           </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <button className="btn prim" onClick={onZap}>Mensagens prontas pro WhatsApp</button>
-            {temIA && <button className="btn" onClick={onGerar}>Gerar com IA</button>}
-            <button className="btn" onClick={onEditar}>Editar</button>
+          <div className="linha-meta">
+            <SeloTemperatura lead={l} mostrarPontos={false} />
+            <span className={`etapa-pill st-${l.status}`}>{STATUS.find((s) => s.id === l.status)?.nome}</span>
+            <Proximo lead={l} />
+          </div>
+          <div className="linha-valor">
+            <strong>{reais(l.valor ?? sugerirPreco(l).sugerido)}</strong>
+            <small>{l.valor ? (l.status === "fechado" ? "fechado" : "proposta") : "sugerido"}</small>
+          </div>
+          <div className="linha-acoes">
+            <BotaoZap lead={l} compacto />
+            <BotaoMaps lead={l} compacto />
           </div>
         </div>
-
-        <dl className="dados">
-          <dt>Responsável</dt><dd>{lead.responsavel || "—"}</dd>
-          <dt>Telefone</dt><dd>{lead.telefone || "—"}</dd>
-          <dt>Site</dt>
-          <dd>
-            {lead.siteStatus === "nao-encontrado" || !lead.site ? (
-              <span className="tag laranja">Não localizado</span>
-            ) : (
-              <>
-                {lead.site}{" "}
-                {lead.siteStatus === "desatualizado" && <span className="tag laranja">Desatualizado</span>}
-              </>
-            )}
-          </dd>
-          <dt>Instagram</dt><dd>{lead.instagram || "Não encontrado"}{lead.seguidores ? ` · ${lead.seguidores} seguidores` : ""}</dd>
-          {lead.endereco && (<><dt>Endereço</dt><dd>{lead.endereco}</dd></>)}
-          {lead.linkDemo && (<><dt>Site demonstrativo</dt><dd>{lead.linkDemo}</dd></>)}
-          <dt>Oferecer</dt><dd>{servicoPorId(lead.servicoInteresse).nome}</dd>
-          <dt>Info pública</dt><dd>{lead.infoPublica || "—"}</dd>
-          <dt>Status</dt>
-          <dd>
-            <select
-              className="sel"
-              style={{ width: "auto", padding: "4px 8px" }}
-              value={lead.status}
-              onChange={(e) => salvarLead({ ...lead, status: e.target.value as Lead["status"] })}
-            >
-              {STATUS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select>
-          </dd>
-        </dl>
-
-        <h3 style={{ fontSize: 15, margin: "18px 0 8px" }}>Histórico de contatos</h3>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select className="sel" style={{ width: 130 }} value={tipo} onChange={(e) => setTipo(e.target.value as TipoContato)}>
-            {TIPOS_CONTATO.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
-          </select>
-          <input
-            className="sel"
-            style={{ flex: 1, minWidth: 180 }}
-            placeholder="O que foi conversado? Ex.: falou com a recepção, pediu para ligar sexta"
-            value={resumo}
-            onChange={(e) => setResumo(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && registrar()}
-          />
-          <button className="btn" onClick={registrar}>Registrar</button>
-        </div>
-        {lead.contatos.length === 0 ? (
-          <p className="dica">Nenhum contato registrado. A IA usa este histórico para continuar a conversa de onde parou.</p>
-        ) : (
-          <ul className="timeline">
-            {lead.contatos.slice().reverse().map((c) => (
-              <li key={c.id}>
-                <span>
-                  <small>{new Date(c.data).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {TIPOS_CONTATO.find((t) => t.id === c.tipo)?.nome}</small>
-                  {c.resumo}
-                </span>
-                <button className="btn peq" onClick={() => excluirContato(lead.id, c.id)} aria-label="Remover contato">×</button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div style={{ marginTop: 16, textAlign: "right" }}>
-          <button className="btn peq perigo" onClick={onExcluir}>Excluir lead</button>
-        </div>
-      </div>
-      {children}
+      ))}
     </div>
   );
 }
 
-function FormLead({ inicial, onSalvar, onFechar }: { inicial: Lead; onSalvar: (l: Lead) => void; onFechar: () => void }) {
-  const [l, setL] = useState<Lead>(inicial);
-  const set = <K extends keyof Lead>(k: K, v: Lead[K]) => setL((x) => ({ ...x, [k]: v }));
+function Funil({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => void }) {
+  const [sobre, setSobre] = useState<StatusLead | null>(null);
+  const { leads: todos } = useEstado();
+  const mover = (id: string, status: StatusLead) => {
+    const l = todos.find((x) => x.id === id);
+    if (l && l.status !== status) salvarLead({ ...l, status });
+  };
 
   return (
-    <div className="modal-fundo" onClick={onFechar}>
-      <form
-        className="card pad modal"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!l.empresa.trim()) return;
-          onSalvar({ ...l, siteStatus: l.site.trim() ? l.siteStatus : "nao-encontrado" });
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>{inicial.empresa ? "Editar lead" : "Novo lead"}</h2>
-        <div className="grade g2">
-          <label className="campo"><span>Empresa *</span><input required value={l.empresa} onChange={(e) => set("empresa", e.target.value)} /></label>
-          <label className="campo"><span>Responsável</span><input value={l.responsavel} onChange={(e) => set("responsavel", e.target.value)} placeholder="Nome de quem decide" /></label>
-          <label className="campo">
-            <span>Segmento</span>
-            <select value={l.segmento} onChange={(e) => set("segmento", e.target.value as Lead["segmento"])}>
-              {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select>
-          </label>
-          <label className="campo"><span>Cidade</span><input value={l.cidade} onChange={(e) => set("cidade", e.target.value)} placeholder="Ex.: São Luís/MA" /></label>
-          <label className="campo"><span>Telefone / WhatsApp</span><input value={l.telefone} onChange={(e) => set("telefone", e.target.value)} /></label>
-          <label className="campo">
-            <span>Serviço que deseja oferecer</span>
-            <select value={l.servicoInteresse} onChange={(e) => set("servicoInteresse", e.target.value as Lead["servicoInteresse"])}>
-              {SERVICOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select>
-          </label>
-          <label className="campo"><span>Site (deixe vazio se não localizado)</span><input value={l.site} onChange={(e) => set("site", e.target.value)} placeholder="www.exemplo.com.br" /></label>
-          <label className="campo">
-            <span>Situação do site</span>
-            <select value={l.site ? l.siteStatus : "nao-encontrado"} disabled={!l.site} onChange={(e) => set("siteStatus", e.target.value as Lead["siteStatus"])}>
-              <option value="nao-encontrado">Não localizado</option>
-              <option value="desatualizado">Existe, mas está desatualizado</option>
-              <option value="ok">Existe e está ok</option>
-            </select>
-          </label>
-          <label className="campo"><span>Instagram</span><input value={l.instagram} onChange={(e) => set("instagram", e.target.value)} placeholder="@perfil" /></label>
-          <label className="campo"><span>Link do site demonstrativo</span><input value={l.linkDemo ?? ""} onChange={(e) => set("linkDemo", e.target.value)} placeholder="Entra nas mensagens prontas" /></label>
-          <label className="campo"><span>Seguidores (opcional)</span><input value={l.seguidores} onChange={(e) => set("seguidores", e.target.value)} placeholder="Ex.: 2,3 mil" /></label>
-        </div>
-        <label className="campo" style={{ marginTop: 14 }}>
-          <span>Informações públicas que você viu</span>
-          <textarea
-            value={l.infoPublica}
-            onChange={(e) => set("infoPublica", e.target.value)}
-            placeholder="Ex.: 4,8 no Google com 120 avaliações; posta antes e depois toda semana; atende convênios; abriu segunda unidade."
-          />
-        </label>
-        <p className="dica">A IA só usa o que estiver aqui. O que você não preencher vira um campo entre colchetes para completar.</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
-          <button type="button" className="btn" onClick={onFechar}>Cancelar</button>
-          <button type="submit" className="btn prim">Salvar lead</button>
-        </div>
-      </form>
+    <div className="funil">
+      {STATUS.map((s) => {
+        const col = leads.filter((l) => l.status === s.id);
+        return (
+          <section
+            key={s.id}
+            className={`coluna st-${s.id} ${sobre === s.id ? "sobre" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setSobre(s.id); }}
+            onDragLeave={() => setSobre(null)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setSobre(null);
+              mover(e.dataTransfer.getData("text/plain"), s.id);
+            }}
+          >
+            <header>
+              <h2>{s.nome}</h2>
+              <span>{col.length}</span>
+            </header>
+            <div className="coluna-cards">
+              {col.map((l) => (
+                <article
+                  key={l.id}
+                  className="cartao"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", l.id)}
+                  onClick={() => onAbrir(l.id)}
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && onAbrir(l.id)}
+                >
+                  <div className="cartao-topo">
+                    <b>{l.empresa}</b>
+                    <SeloTemperatura lead={l} mostrarPontos={false} />
+                  </div>
+                  <small>{l.cidade || segmentoPorId(l.segmento).nome}, {reais(l.valor ?? sugerirPreco(l).sugerido)}</small>
+                  <div className="cartao-pe">
+                    <Proximo lead={l} />
+                    <span className="cartao-acoes">
+                      <BotaoZap lead={l} compacto />
+                      <BotaoMaps lead={l} compacto />
+                    </span>
+                  </div>
+                  <select
+                    className="sel mover"
+                    value={l.status}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => mover(l.id, e.target.value as StatusLead)}
+                    aria-label={`Mover ${l.empresa} para outra etapa`}
+                  >
+                    {STATUS.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                  </select>
+                </article>
+              ))}
+              {col.length === 0 && <p className="coluna-vazia">Arraste um lead para cá</p>}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

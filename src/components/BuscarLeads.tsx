@@ -2,26 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { avisar, postar, useIntegracoes } from "@/lib/api";
-import { SEGMENTOS, SERVICOS } from "@/lib/catalogo";
+import { linkSite, qualificar, type Temperatura } from "@/lib/acoes";
+import { NICHOS_EM_ALTA, POTENCIAL, SEGMENTOS, SERVICOS, TERMO_MAPS, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
 import { definirApifyToken, novoId, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
 import type { Encontrado } from "@/app/api/apify/status/route";
-
-const TERMO: Record<SegmentoId, string> = {
-  odontologia: "dentista",
-  "clinica-medica": "clínica médica",
-  petshop: "pet shop",
-  oficina: "oficina mecânica",
-  "estetica-automotiva": "estética automotiva",
-  advocacia: "advogado",
-  restaurante: "restaurante",
-  salao: "salão de beleza",
-  academia: "academia",
-  transportadora: "transportadora",
-  imobiliaria: "imobiliária",
-  "loja-local": "loja",
-};
+import { SeloTemperatura } from "./AcoesRapidas";
+import { IcInsta, IcPino, IcSite } from "./Icones";
 
 const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim().toLowerCase();
 
@@ -29,7 +17,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const { leads, apifyToken } = useEstado();
   const integ = useIntegracoes();
   const [segmento, setSegmento] = useState<SegmentoId>("odontologia");
-  const [busca, setBusca] = useState(TERMO.odontologia);
+  const [busca, setBusca] = useState(TERMO_MAPS.odontologia);
   const [local, setLocal] = useState("");
   const [maximo, setMaximo] = useState(20);
   const [contatos, setContatos] = useState(false);
@@ -40,8 +28,10 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const [segundos, setSegundos] = useState(0);
   const [erro, setErro] = useState("");
   const [encontrados, setEncontrados] = useState<Encontrado[] | null>(null);
+  const [segBusca, setSegBusca] = useState<SegmentoId>("odontologia");
   const [marcados, setMarcados] = useState<Set<number>>(new Set());
-  const [soSemSite, setSoSemSite] = useState(true);
+  const [soSemSite, setSoSemSite] = useState(false);
+  const [temp, setTemp] = useState<"" | Temperatura>("");
   const parar = useRef(false);
 
   useEffect(() => () => { parar.current = true; }, []);
@@ -50,7 +40,20 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const jaCadastrados = useMemo(() => new Set(leads.map((l) => chave(l.empresa, l.telefone))), [leads]);
   const temToken = Boolean(apifyToken || integ.apify);
 
-  const lista = (encontrados ?? []).map((e, i) => ({ e, i })).filter(({ e }) => !soSemSite || !e.site);
+  const avaliados = useMemo(
+    () =>
+      (encontrados ?? [])
+        .map((e, i) => ({ e, i, q: qualificar({ ...e, segmento: segBusca }) }))
+        .sort((a, b) => b.q.pontos - a.q.pontos),
+    [encontrados, segBusca],
+  );
+  const lista = avaliados.filter(({ e, q }) => (!soSemSite || !e.site) && (!temp || q.temperatura === temp));
+  const contagem = (t: Temperatura) => avaliados.filter((x) => x.q.temperatura === t).length;
+
+  function escolherNicho(s: SegmentoId) {
+    setSegmento(s);
+    setBusca(TERMO_MAPS[s]);
+  }
 
   async function buscar() {
     setErro("");
@@ -62,18 +65,21 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
     const inicio = Date.now();
     const relogio = setInterval(() => setSegundos(Math.round((Date.now() - inicio) / 1000)), 1000);
     try {
-      const { runId } = await postar<{ runId: string }>("/api/apify/iniciar", {
-        busca, local, maximo, contatos, token: apifyToken,
-      });
+      const { runId } = await postar<{ runId: string }>("/api/apify/iniciar", { busca, local, maximo, contatos, token: apifyToken });
       while (!parar.current) {
         await new Promise((r) => setTimeout(r, 5000));
-        const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", {
-          runId, token: apifyToken,
-        });
+        const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", { runId, token: apifyToken });
         if (r.status === "pronto") {
           const novos = r.encontrados ?? [];
+          setSegBusca(segmento);
           setEncontrados(novos);
-          setMarcados(new Set(novos.map((e, i) => (!e.site && !jaCadastrados.has(chave(e.nome, e.telefone)) ? i : -1)).filter((i) => i >= 0)));
+          setMarcados(
+            new Set(
+              novos
+                .map((e, i) => (!jaCadastrados.has(chave(e.nome, e.telefone)) && qualificar({ ...e, segmento }).temperatura !== "frio" ? i : -1))
+                .filter((i) => i >= 0),
+            ),
+          );
           break;
         }
         if (r.status === "falhou") throw new Error(r.erro);
@@ -96,7 +102,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
         id: novoId(),
         empresa: e.nome,
         responsavel: "",
-        segmento,
+        segmento: segBusca,
         cidade: e.cidade || local,
         telefone: e.telefone,
         site: e.site,
@@ -108,6 +114,9 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
           e.categoria ? `categoria no Google: ${e.categoria}` : "",
         ].filter(Boolean).join("; "),
         endereco: e.endereco,
+        mapa: e.mapa,
+        nota: e.nota,
+        avaliacoes: e.avaliacoes,
         origemLead: "apify",
         servicoInteresse: servico,
         status: "novo",
@@ -116,7 +125,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
       }));
     if (!novos.length) return avisar("Nada novo para importar");
     salvarVariosLeads(novos);
-    avisar(`${novos.length} ${novos.length === 1 ? "lead importado" : "leads importados"}`);
+    avisar(`${novos.length} ${novos.length === 1 ? "lead importado" : "leads importados"}. Eles já estão na lista de hoje.`);
     onImportados();
   }
 
@@ -128,130 +137,163 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
       return n;
     });
 
+  const marcarVisiveis = (sim: boolean) =>
+    setMarcados((m) => {
+      const n = new Set(m);
+      lista.forEach(({ e, i }) => {
+        if (jaCadastrados.has(chave(e.nome, e.telefone))) return;
+        if (sim) n.add(i);
+        else n.delete(i);
+      });
+      return n;
+    });
+
   return (
     <>
       <div className="topo">
         <div>
-          <h1>Buscar leads</h1>
-          <p>Encontre empresas no Google Maps pela Apify e importe direto para os seus leads.</p>
+          <h1>Buscar empresas</h1>
+          <p>Encontre negócios no Google Maps e importe os mais quentes direto para a sua lista.</p>
         </div>
       </div>
 
-      <div className="card pad" style={{ marginBottom: 16 }}>
-        {mostrarToken || !temToken ? (
-          <div className="grade" style={{ gap: 8 }}>
-            <label className="campo">
-              <span>Token da Apify</span>
-              <input
-                type="password"
-                defaultValue={apifyToken}
-                placeholder="apify_api_..."
-                onBlur={(e) => e.target.value.trim() && definirApifyToken(e.target.value)}
-                autoComplete="off"
-              />
-            </label>
-            <p className="dica" style={{ margin: 0 }}>
-              Crie uma conta grátis em apify.com e copie o token em Settings, na parte de API. Ele fica salvo só na sua conta da ferramenta.
-              A Apify cobra por resultado, e o plano gratuito vem com um crédito mensal.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="dica">Apify conectada{apifyToken ? " com o seu token" : " pelo servidor"}.</span>
-            {apifyToken && <button className="btn peq" onClick={() => setMostrarToken(true)}>Trocar token</button>}
-          </div>
-        )}
-      </div>
+      <section className="nichos" aria-label="Nichos">
+        <h2 className="secao-titulo">Nichos que mais compram site</h2>
+        <div className="nichos-lista">
+          {NICHOS_EM_ALTA.map((s) => (
+            <button key={s.id} className={`nicho ${segmento === s.id ? "ativo" : ""}`} onClick={() => escolherNicho(s.id)} aria-pressed={segmento === s.id}>
+              <span>{s.nome.charAt(0).toUpperCase() + s.nome.slice(1)}</span>
+              <span className="potencial" aria-label={`Potencial ${POTENCIAL[s.id]} de 3`}>
+                {[1, 2, 3].map((i) => <i key={i} className={i <= POTENCIAL[s.id] ? "on" : ""} />)}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <form
-        className="card pad grade g3"
+        className="card pad busca-form"
         onSubmit={(e) => { e.preventDefault(); if (temToken) buscar(); else setErro("Cole o token da Apify primeiro."); }}
       >
-        <label className="campo">
-          <span>Segmento</span>
-          <select value={segmento} onChange={(e) => { const s = e.target.value as SegmentoId; setSegmento(s); setBusca(TERMO[s]); }}>
-            {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-          </select>
-        </label>
-        <label className="campo">
-          <span>O que buscar no Maps</span>
-          <input value={busca} onChange={(e) => setBusca(e.target.value)} required />
-        </label>
-        <label className="campo">
-          <span>Cidade</span>
-          <input value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Ex.: São Luís, MA" required />
-        </label>
-        <label className="campo">
-          <span>Quantidade máxima</span>
-          <select value={maximo} onChange={(e) => setMaximo(Number(e.target.value))}>
-            {[10, 20, 40, 60, 100].map((n) => <option key={n} value={n}>{n} empresas</option>)}
-          </select>
-        </label>
-        <label className="campo">
-          <span>Serviço que vai oferecer</span>
-          <select value={servico} onChange={(e) => setServico(e.target.value as ServicoId)}>
-            {SERVICOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-          </select>
-        </label>
-        <label className="campo">
-          <span>Extras</span>
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14, paddingTop: 6 }}>
-            <input type="checkbox" checked={contatos} onChange={(e) => setContatos(e.target.checked)} />
-            Buscar Instagram e e-mail (mais lento e custa mais)
+        <div className="grade g3">
+          <label className="campo">
+            <span>Nicho</span>
+            <select value={segmento} onChange={(e) => escolherNicho(e.target.value as SegmentoId)}>
+              {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
           </label>
-        </label>
-        <div style={{ gridColumn: "1 / -1", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="btn prim" type="submit" disabled={rodando}>
-            {rodando ? `Buscando... ${segundos}s` : "Buscar empresas"}
+          <label className="campo">
+            <span>O que buscar no Maps</span>
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} required />
+          </label>
+          <label className="campo">
+            <span>Cidade ou bairro</span>
+            <input value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Ex.: Moema, São Paulo" required />
+          </label>
+          <label className="campo">
+            <span>Quantidade</span>
+            <select value={maximo} onChange={(e) => setMaximo(Number(e.target.value))}>
+              {[10, 20, 40, 60, 100].map((n) => <option key={n} value={n}>{n} empresas</option>)}
+            </select>
+          </label>
+          <label className="campo">
+            <span>Serviço que vai oferecer</span>
+            <select value={servico} onChange={(e) => setServico(e.target.value as ServicoId)}>
+              {SERVICOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+          </label>
+          <label className="check" style={{ alignSelf: "end", paddingBottom: 9 }}>
+            <input type="checkbox" checked={contatos} onChange={(e) => setContatos(e.target.checked)} />
+            Buscar Instagram e e-mail também (mais lento)
+          </label>
+        </div>
+
+        <div className="busca-pe">
+          <button className="btn prim grande" type="submit" disabled={rodando}>
+            {rodando ? `Buscando ${segmentoPorId(segmento).plural}... ${segundos}s` : `Buscar ${segmentoPorId(segmento).plural}`}
           </button>
-          {rodando && <span className="dica">A Apify costuma levar de 1 a 3 minutos. Pode deixar esta tela aberta.</span>}
+          {rodando && <span className="dica">Costuma levar de 1 a 3 minutos. Pode deixar esta tela aberta.</span>}
           {erro && <span className="erro" style={{ margin: 0 }}>{erro}</span>}
+        </div>
+
+        <div className="token">
+          {mostrarToken || !temToken ? (
+            <label className="campo">
+              <span>Token da Apify</span>
+              <input type="password" defaultValue={apifyToken} placeholder="apify_api_..." onBlur={(e) => e.target.value.trim() && definirApifyToken(e.target.value)} autoComplete="off" />
+              <small className="dica">Em apify.com, entre em Settings e copie o token da parte de API. Ele fica salvo só na sua conta.</small>
+            </label>
+          ) : (
+            <p className="dica" style={{ margin: 0 }}>
+              Apify conectada.{" "}
+              {apifyToken && <button type="button" className="link" onClick={() => setMostrarToken(true)}>Trocar token</button>}
+            </p>
+          )}
         </div>
       </form>
 
       {encontrados && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="filtros" style={{ alignItems: "center", justifyContent: "space-between" }}>
-            <span>
-              <b>{encontrados.length}</b> empresas encontradas · <b>{encontrados.filter((e) => !e.site).length}</b> sem site
-            </span>
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 14, flex: "0 0 auto" }}>
-              <input type="checkbox" checked={soSemSite} onChange={(e) => setSoSemSite(e.target.checked)} />
-              Mostrar só quem não tem site
-            </label>
-            <button className="btn prim" onClick={importar} disabled={!marcados.size} style={{ flex: "0 0 auto" }}>
+        <section className="card resultados-card">
+          <div className="resultados-cab">
+            <div>
+              <h2>{encontrados.length} empresas encontradas</h2>
+              <p className="dica" style={{ margin: 0 }}>Ordenadas da mais quente para a mais fria. As quentes e mornas já vêm marcadas.</p>
+            </div>
+            <button className="btn prim" onClick={importar} disabled={!marcados.size}>
               Importar {marcados.size} {marcados.size === 1 ? "lead" : "leads"}
             </button>
+          </div>
+          <div className="resultados-filtros">
+            {(["", "quente", "morno", "frio"] as const).map((t) => (
+              <button key={t || "todos"} className={`chip ${temp === t ? "ativo" : ""}`} onClick={() => setTemp(t)}>
+                {t === "" ? `Todas (${encontrados.length})` : `${t.charAt(0).toUpperCase() + t.slice(1)}s (${contagem(t)})`}
+              </button>
+            ))}
+            <label className="check">
+              <input type="checkbox" checked={soSemSite} onChange={(e) => setSoSemSite(e.target.checked)} />
+              Só sem site
+            </label>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <button className="btn peq" onClick={() => marcarVisiveis(true)}>Marcar todas</button>
+              <button className="btn peq" onClick={() => marcarVisiveis(false)}>Desmarcar</button>
+            </span>
           </div>
           {lista.length === 0 ? (
             <div className="vazio">Nenhuma empresa com esse filtro.</div>
           ) : (
-            <div className="tabela-wrap">
-              <table className="resultados">
-                <thead>
-                  <tr><th></th><th>Empresa</th><th>Telefone</th><th>Site</th><th>Google</th></tr>
-                </thead>
-                <tbody>
-                  {lista.map(({ e, i }) => {
-                    const ja = jaCadastrados.has(chave(e.nome, e.telefone));
-                    return (
-                      <tr key={i} style={{ opacity: ja ? 0.55 : 1 }}>
-                        <td><input type="checkbox" disabled={ja} checked={marcados.has(i)} onChange={() => alternar(i)} aria-label={`Selecionar ${e.nome}`} /></td>
-                        <td>
-                          {e.nome}
-                          <small>{e.endereco}{ja ? " · já está nos seus leads" : ""}</small>
-                        </td>
-                        <td>{e.telefone || <small>sem telefone</small>}</td>
-                        <td>{e.site ? <small style={{ overflowWrap: "anywhere" }}>{e.site}</small> : <span className="tag laranja">Sem site</span>}</td>
-                        <td>{e.nota !== null ? `${String(e.nota).replace(".", ",")} ★` : "—"}<small>{e.avaliacoes !== null ? `${e.avaliacoes} avaliações` : ""}</small></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ul className="achados">
+              {lista.map(({ e, i, q }) => {
+                const ja = jaCadastrados.has(chave(e.nome, e.telefone));
+                return (
+                  <li key={i} className={`achado ${ja ? "ja" : ""} ${marcados.has(i) ? "marcado" : ""}`}>
+                    <label className="achado-check">
+                      <input type="checkbox" disabled={ja} checked={marcados.has(i)} onChange={() => alternar(i)} aria-label={`Selecionar ${e.nome}`} />
+                    </label>
+                    <div className="achado-info">
+                      <b>{e.nome}</b>
+                      <small>{e.endereco}</small>
+                      <div className="achado-tags">
+                        {!e.site && <span className="tag laranja">Sem site</span>}
+                        {e.nota !== null && <span className="tag cinza">{String(e.nota).replace(".", ",")} ★ {e.avaliacoes !== null ? `(${e.avaliacoes})` : ""}</span>}
+                        {e.telefone ? <span className="tag cinza">{e.telefone}</span> : <span className="tag cinza">Sem telefone</span>}
+                        {ja && <span className="tag azul">Já está na sua lista</span>}
+                      </div>
+                      {q.motivos.length > 0 && <p className="achado-motivos">{q.motivos.join(", ")}</p>}
+                    </div>
+                    <div className="achado-lado">
+                      <SeloTemperatura dados={{ ...e, segmento: segBusca }} />
+                      <div className="achado-links">
+                        {e.mapa && <a className="btn icone" href={e.mapa} target="_blank" rel="noopener noreferrer" title="Abrir no Maps"><IcPino /></a>}
+                        {e.site && <a className="btn icone" href={linkSite(e.site)} target="_blank" rel="noopener noreferrer" title="Abrir site"><IcSite /></a>}
+                        {e.instagram && <a className="btn icone" href={`https://instagram.com/${e.instagram.replace("@", "")}`} target="_blank" rel="noopener noreferrer" title="Abrir Instagram"><IcInsta /></a>}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
+        </section>
       )}
     </>
   );

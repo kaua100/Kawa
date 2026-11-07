@@ -21,6 +21,7 @@ export interface CtxZap {
   site: string;
   siteStatus: Lead["siteStatus"];
   linkDemo: string;
+  quandoReuniao: string; // " sábado, 14/11, às 10h" ou " no horário que combinamos"
 }
 
 export function contextoZap(lead: Lead, vendedor: string): CtxZap {
@@ -40,7 +41,17 @@ export function contextoZap(lead: Lead, vendedor: string): CtxZap {
     site: lead.site,
     siteStatus: lead.site ? lead.siteStatus : "nao-encontrado",
     linkDemo: (lead.linkDemo || "").trim(),
+    quandoReuniao: lead.reuniaoData ? ` ${quando(lead.reuniaoData)}` : " no horário que combinamos",
   };
+}
+
+function quando(dt: string) {
+  const d = new Date(dt);
+  if (isNaN(d.getTime())) return "no horário que combinamos";
+  const dia = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
+  const h = d.getHours();
+  const m = d.getMinutes();
+  return `${dia}, às ${h}h${m ? String(m).padStart(2, "0") : ""}`;
 }
 
 const minuscula = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
@@ -219,6 +230,24 @@ Se em algum momento fizer sentido ter ${c.umServico} para ${c.empresa}, é só m
     id: "proposta",
     nome: "Proposta e fechamento",
     mensagens: [
+      {
+        id: "reuniao-convite",
+        titulo: "Chamar para uma conversa",
+        quando: "Quando a pessoa mostrou interesse e você quer marcar uma reunião.",
+        categoria: "fechamento",
+        texto: (c) => `${c.oi} Para eu te mostrar direitinho como ficaria o site de ${c.empresa} e entender o que vocês precisam, podemos conversar 15 minutos?
+
+Pode ser por chamada de vídeo ou aí pessoalmente. Qual dia e horário ficam melhores para você?`,
+      },
+      {
+        id: "reuniao-confirmar",
+        titulo: "Confirmar a reunião",
+        quando: "No dia anterior ou no dia da reunião.",
+        categoria: "fechamento",
+        texto: (c) => `${c.oi} Passando para confirmar nossa conversa${c.quandoReuniao}. Vou te mostrar a ideia do site de ${c.empresa} e tirar suas dúvidas.
+
+Continua bom para você?`,
+      },
       {
         id: "proposta-envio",
         titulo: "Enviar a proposta",

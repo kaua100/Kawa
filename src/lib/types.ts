@@ -10,7 +10,17 @@ export type SegmentoId =
   | "academia"
   | "transportadora"
   | "imobiliaria"
-  | "loja-local";
+  | "loja-local"
+  | "barbearia"
+  | "clinica-estetica"
+  | "psicologia"
+  | "nutricionista"
+  | "fisioterapia"
+  | "contabilidade"
+  | "construcao"
+  | "buffet"
+  | "energia-solar"
+  | "pousada";
 
 export type CategoriaId =
   | "primeira-ligacao"
@@ -41,6 +51,7 @@ export type StatusLead =
   | "novo"
   | "contatado"
   | "interessado"
+  | "reuniao"
   | "proposta"
   | "fechado"
   | "perdido";
@@ -58,6 +69,7 @@ export interface Contato {
   data: string; // ISO
   tipo: TipoContato;
   resumo: string;
+  msgId?: string; // mensagem pronta enviada, se houver
 }
 
 export interface Lead {
@@ -75,6 +87,13 @@ export interface Lead {
   linkDemo?: string; // link do site demonstrativo feito para o lead
   endereco?: string;
   origemLead?: "manual" | "apify";
+  mapa?: string; // link do Google Maps
+  nota?: number | null; // nota no Google
+  avaliacoes?: number | null; // número de avaliações no Google
+  proximoContato?: string; // data (AAAA-MM-DD) para chamar de novo
+  reuniaoData?: string; // data e hora da reunião (AAAA-MM-DDTHH:MM)
+  valor?: number; // valor fechado ou proposto, em reais
+  marcos?: Partial<Record<StatusLead, string>>; // quando o lead entrou em cada etapa (ISO)
   servicoInteresse: ServicoId;
   status: StatusLead;
   contatos: Contato[];

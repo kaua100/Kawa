@@ -50,19 +50,27 @@ export default function Login() {
 
   return (
     <div className="login-fundo">
-      <form className="card pad login" onSubmit={enviar}>
-        <div className="logo" style={{ color: "var(--text)", padding: "0 0 18px" }}>
-          <div className="logo-mark">CD</div>
+      <section className="login-lado" aria-hidden={false}>
+        <div className="marca">
+          <div className="marca-sinal" aria-hidden><span /><span /></div>
           <div>
             <b>Conecta Digital</b>
-            <small style={{ color: "var(--muted)" }}>Prospector</small>
+            <small>Prospector</small>
           </div>
         </div>
-        <h1 style={{ fontSize: 20, margin: "0 0 4px" }}>
+        <h2 className="login-frase">Sua prospecção do dia, pronta para enviar.</h2>
+        <ul className="login-pontos">
+          <li>Busque no Google Maps as empresas que ainda não têm site.</li>
+          <li>Mande a mensagem certa no WhatsApp com um clique.</li>
+          <li>Veja quantos você chamou, quantas reuniões marcou e quanto fechou.</li>
+        </ul>
+      </section>
+      <form className="login" onSubmit={enviar}>
+        <h1 className="login-titulo">
           {modo === "entrar" ? "Entrar" : modo === "criar" ? "Criar conta" : "Recuperar senha"}
         </h1>
         <p className="dica" style={{ margin: "0 0 18px" }}>
-          {modo === "esqueci" ? "Digite seu e-mail para receber o link." : "Seus leads e scripts ficam salvos na sua conta."}
+          {modo === "esqueci" ? "Digite seu e-mail para receber o link de nova senha." : modo === "criar" ? "Seus leads, mensagens e resultados ficam salvos na sua conta." : "Bom te ver de novo."}
         </p>
         <div className="grade">
           <label className="campo">
@@ -82,7 +90,7 @@ export default function Login() {
               />
             </label>
           )}
-          <button className="btn prim" type="submit" disabled={enviando} style={{ justifyContent: "center", padding: 10 }}>
+          <button className="btn prim grande" type="submit" disabled={enviando}>
             {enviando ? "Aguarde..." : modo === "entrar" ? "Entrar" : modo === "criar" ? "Criar conta" : "Enviar link"}
           </button>
           {erro && <div className="erro" style={{ margin: 0 }}>{erro}</div>}

@@ -83,13 +83,26 @@ async function gravarLead(lead: Lead) {
   erroAoSalvar(error);
 }
 
-export function salvarLead(lead: Lead) {
+/** Guarda a data em que o lead entrou em cada etapa, para as métricas. */
+function carimbar(lead: Lead): Lead {
+  const antes = estado.leads.find((l) => l.id === lead.id);
+  const marcos = { ...(lead.marcos ?? {}) };
+  if (!marcos[lead.status] && (!antes || antes.status !== lead.status || !antes.marcos?.[lead.status])) {
+    marcos[lead.status] = new Date().toISOString();
+  }
+  if (lead.contatos.length && !marcos.contatado) marcos.contatado = lead.contatos[0].data;
+  return { ...lead, marcos };
+}
+
+export function salvarLead(entrada: Lead) {
+  const lead = carimbar(entrada);
   const existe = estado.leads.some((l) => l.id === lead.id);
   mudar({ leads: existe ? estado.leads.map((l) => (l.id === lead.id ? lead : l)) : [lead, ...estado.leads] });
   gravarLead(lead);
 }
 
-export async function salvarVariosLeads(novos: Lead[]) {
+export async function salvarVariosLeads(entrada: Lead[]) {
+  const novos = entrada.map(carimbar);
   mudar({ leads: [...novos, ...estado.leads] });
   const agora = new Date().toISOString();
   const { error } = await supabase.from("leads").upsert(novos.map((l) => ({ id: l.id, dados: l, atualizado_em: agora })));
@@ -101,14 +114,15 @@ export function excluirLead(id: string) {
   supabase.from("leads").delete().eq("id", id).then(({ error }) => erroAoSalvar(error));
 }
 
-function alterarLead(leadId: string, f: (l: Lead) => Lead) {
+export function alterarLead(leadId: string, f: (l: Lead) => Lead) {
   const l = estado.leads.find((x) => x.id === leadId);
   if (l) salvarLead(f(l));
 }
 
-export function adicionarContato(leadId: string, contato: Omit<Contato, "id">) {
+export function adicionarContato(leadId: string, contato: Omit<Contato, "id">, extra?: Partial<Lead>) {
   alterarLead(leadId, (l) => ({
     ...l,
+    ...extra,
     status: l.status === "novo" ? "contatado" : l.status,
     contatos: [...l.contatos, { ...contato, id: novoId() }],
   }));

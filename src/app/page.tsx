@@ -1,15 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import BuscarLeads from "@/components/BuscarLeads";
 import Central, { type AbaCentral } from "@/components/Central";
+import FichaLead from "@/components/FichaLead";
+import Hoje from "@/components/Hoje";
+import { IcBusca, IcGrafico, IcHoje, IcLeads, IcMsg, IcSair, IcVoltar } from "@/components/Icones";
 import Leads from "@/components/Leads";
 import Login, { NovaSenha } from "@/components/Login";
+import Resultados from "@/components/Resultados";
 import { useIntegracoes } from "@/lib/api";
+import { filaDeHoje } from "@/lib/acoes";
 import { carregarDados, definirVendedor, exportarDados, importarDados, limparDados, useEstado } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
-type Tela = "leads" | "buscar" | "central";
+type Tela = "hoje" | "leads" | "funil" | "buscar" | "central" | "resultados";
+
+interface Rota {
+  tela: Tela;
+  ficha: string | null;
+  aba?: AbaCentral;
+  lead?: string | null;
+}
 
 export default function Home() {
   const [sessao, setSessao] = useState<"verificando" | "fora" | "dentro" | "nova-senha">("verificando");
@@ -40,37 +52,72 @@ export default function Home() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (sessao === "verificando") return <div className="tela-carregando">Carregando...</div>;
+  if (sessao === "verificando") return <div className="tela-carregando"><span className="spinner" /></div>;
   if (sessao === "fora") return <Login />;
   if (sessao === "nova-senha") return <NovaSenha onPronto={() => setSessao("dentro")} />;
   return <App email={email} />;
 }
 
+const NAV: { tela: Tela; nome: string; curto: string; Icone: () => React.ReactElement }[] = [
+  { tela: "hoje", nome: "Hoje", curto: "Hoje", Icone: IcHoje },
+  { tela: "leads", nome: "Leads", curto: "Leads", Icone: IcLeads },
+  { tela: "buscar", nome: "Buscar empresas", curto: "Buscar", Icone: IcBusca },
+  { tela: "central", nome: "Mensagens e roteiros", curto: "Mensagens", Icone: IcMsg },
+  { tela: "resultados", nome: "Resultados", curto: "Resultados", Icone: IcGrafico },
+];
+
+const TITULO: Record<Tela, string> = {
+  hoje: "Hoje",
+  leads: "Leads",
+  funil: "Funil",
+  buscar: "Buscar empresas",
+  central: "Mensagens e roteiros",
+  resultados: "Resultados",
+};
+
 function App({ email }: { email: string }) {
-  const { leads, scripts, vendedor, carregando } = useEstado();
+  const { leads, vendedor, carregando } = useEstado();
   const integ = useIntegracoes();
-  const [tela, setTela] = useState<Tela>("leads");
-  const [abaCentral, setAbaCentral] = useState<AbaCentral>("prontas");
-  const [leadSel, setLeadSel] = useState<string | null>(null);
-  const [leadCentral, setLeadCentral] = useState<string | null>(null);
+  const [rota, setRota] = useState<Rota>({ tela: "hoje", ficha: null });
   const [toast, setToast] = useState("");
+
+  // Navegação ligada ao histórico do navegador: o botão voltar do celular funciona.
+  useEffect(() => {
+    window.history.replaceState({ tela: "hoje", ficha: null }, "");
+    const pop = (e: PopStateEvent) => setRota((e.state as Rota) ?? { tela: "hoje", ficha: null });
+    window.addEventListener("popstate", pop);
+    return () => window.removeEventListener("popstate", pop);
+  }, []);
+
+  const ir = useCallback((nova: Partial<Rota>) => {
+    setRota((atual) => {
+      const r: Rota = { ...atual, ficha: null, ...nova };
+      window.history.pushState(r, "");
+      window.scrollTo({ top: 0 });
+      return r;
+    });
+  }, []);
+
+  const abrirFicha = useCallback((id: string) => {
+    setRota((atual) => {
+      const r = { ...atual, ficha: id };
+      window.history.pushState(r, "");
+      return r;
+    });
+  }, []);
+
+  const voltar = useCallback(() => window.history.back(), []);
 
   useEffect(() => {
     let t: ReturnType<typeof setTimeout>;
     const ouvir = (e: Event) => {
       setToast((e as CustomEvent<string>).detail);
       clearTimeout(t);
-      t = setTimeout(() => setToast(""), 2600);
+      t = setTimeout(() => setToast(""), 2800);
     };
     window.addEventListener("aviso", ouvir);
     return () => window.removeEventListener("aviso", ouvir);
   }, []);
-
-  const abrirCentral = (leadId: string, aba: AbaCentral) => {
-    setLeadCentral(leadId);
-    setAbaCentral(aba);
-    setTela("central");
-  };
 
   const exportar = () => {
     const blob = new Blob([exportarDados()], { type: "application/json" });
@@ -97,62 +144,100 @@ function App({ email }: { email: string }) {
     input.click();
   };
 
+  const naFila = filaDeHoje(leads).length;
+  const telaNav = rota.tela === "funil" ? "leads" : rota.tela;
+
   return (
     <div className="app">
       <aside className="side">
-        <div className="logo">
-          <div className="logo-mark">CD</div>
+        <div className="marca">
+          <div className="marca-sinal" aria-hidden>
+            <span />
+            <span />
+          </div>
           <div>
             <b>Conecta Digital</b>
             <small>Prospector</small>
           </div>
         </div>
-        <button className={`nav-btn ${tela === "leads" ? "ativo" : ""}`} onClick={() => setTela("leads")}>
-          Leads <span className="qtd">{leads.length}</span>
-        </button>
-        <button className={`nav-btn ${tela === "buscar" ? "ativo" : ""}`} onClick={() => setTela("buscar")}>
-          Buscar leads
-        </button>
-        <button className={`nav-btn ${tela === "central" ? "ativo" : ""}`} onClick={() => setTela("central")}>
-          Central de Abordagem <span className="qtd">{scripts.length}</span>
-        </button>
+        <nav className="nav" aria-label="Principal">
+          {NAV.map(({ tela, nome, curto, Icone }) => (
+            <button key={tela} className={`nav-btn ${telaNav === tela ? "ativo" : ""}`} onClick={() => ir({ tela })} aria-current={telaNav === tela ? "page" : undefined}>
+              <Icone />
+              <span className="nav-nome">{nome}</span>
+              <span className="nav-curto">{curto}</span>
+              {tela === "hoje" && naFila > 0 && <span className="nav-qtd">{naFila}</span>}
+              {tela === "leads" && <span className="nav-qtd fraco">{leads.length}</span>}
+            </button>
+          ))}
+        </nav>
         <div className="side-rodape">
-          <label htmlFor="vendedor">Seu nome (entra nas mensagens)</label>
+          <label htmlFor="vendedor">Seu nome nas mensagens</label>
           <input id="vendedor" value={vendedor} onChange={(e) => definirVendedor(e.target.value)} placeholder="Ex.: Kaua" />
-          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-            <button className="nav-btn" style={{ fontSize: 12, padding: "6px 8px" }} onClick={exportar}>Exportar</button>
-            <button className="nav-btn" style={{ fontSize: 12, padding: "6px 8px" }} onClick={importar}>Importar</button>
-            <button className="nav-btn" style={{ fontSize: 12, padding: "6px 8px" }} onClick={() => supabase.auth.signOut()}>Sair</button>
+          <div className="side-links">
+            <button onClick={exportar}>Fazer backup</button>
+            <button onClick={importar}>Restaurar</button>
           </div>
-          <small style={{ display: "block", marginTop: 8, opacity: 0.6, overflowWrap: "anywhere" }}>{email}</small>
+          <div className="conta">
+            <small>{email}</small>
+            <button onClick={() => supabase.auth.signOut()} aria-label="Sair da conta" title="Sair"><IcSair /></button>
+          </div>
         </div>
       </aside>
 
+      <header className="barra-mobile">
+        {rota.tela !== "hoje" ? (
+          <button className="voltar" onClick={voltar}><IcVoltar /> Voltar</button>
+        ) : (
+          <div className="marca mini"><div className="marca-sinal" aria-hidden><span /><span /></div><b>Conecta Digital</b></div>
+        )}
+        <span className="barra-titulo">{rota.tela !== "hoje" ? TITULO[rota.tela] : ""}</span>
+        <button className="sair-mobile" onClick={() => supabase.auth.signOut()} aria-label="Sair da conta"><IcSair /></button>
+      </header>
+
       <main className="main">
+        {rota.tela !== "hoje" && (
+          <button className="voltar voltar-desk" onClick={voltar}><IcVoltar /> Voltar</button>
+        )}
         {carregando ? (
           <div className="carregando"><span className="spinner" /> Carregando seus dados...</div>
-        ) : tela === "leads" ? (
-          <Leads
-            selecionado={leadSel}
-            setSelecionado={setLeadSel}
-            onGerar={(id) => abrirCentral(id, "gerador")}
-            onZap={(id) => abrirCentral(id, "prontas")}
-            onBuscar={() => setTela("buscar")}
-            temIA={integ.ia}
-          />
-        ) : tela === "buscar" ? (
-          <BuscarLeads onImportados={() => setTela("leads")} />
+        ) : rota.tela === "hoje" ? (
+          <Hoje onAbrir={abrirFicha} onBuscar={() => ir({ tela: "buscar" })} onFunil={() => ir({ tela: "funil" })} onResultados={() => ir({ tela: "resultados" })} />
+        ) : rota.tela === "leads" || rota.tela === "funil" ? (
+          <Leads key={rota.tela} onAbrir={abrirFicha} onBuscar={() => ir({ tela: "buscar" })} visaoInicial={rota.tela === "funil" ? "funil" : "lista"} />
+        ) : rota.tela === "buscar" ? (
+          <BuscarLeads onImportados={() => ir({ tela: "hoje" })} />
+        ) : rota.tela === "resultados" ? (
+          <Resultados />
         ) : (
           <Central
-            key={leadCentral ?? "x"}
-            aba={abaCentral}
-            setAba={setAbaCentral}
-            leadInicial={leadCentral}
+            key={rota.lead ?? "x"}
+            aba={rota.aba ?? "prontas"}
+            setAba={(aba) => setRota((r) => ({ ...r, aba }))}
+            leadInicial={rota.lead ?? null}
             temIA={integ.ia}
-            onCadastrar={() => setTela("leads")}
+            onCadastrar={() => ir({ tela: "leads" })}
           />
         )}
       </main>
+
+      <nav className="nav-mobile" aria-label="Principal">
+        {NAV.map(({ tela, curto, Icone }) => (
+          <button key={tela} className={telaNav === tela ? "ativo" : ""} onClick={() => ir({ tela })} aria-current={telaNav === tela ? "page" : undefined}>
+            <span className="nm-icone"><Icone />{tela === "hoje" && naFila > 0 && <i>{naFila > 99 ? "99+" : naFila}</i>}</span>
+            <span>{curto}</span>
+          </button>
+        ))}
+      </nav>
+
+      {rota.ficha && (
+        <FichaLead
+          leadId={rota.ficha}
+          onFechar={voltar}
+          onMensagens={(id) => ir({ tela: "central", aba: "prontas", lead: id })}
+          onIA={integ.ia ? (id) => ir({ tela: "central", aba: "gerador", lead: id }) : undefined}
+        />
+      )}
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

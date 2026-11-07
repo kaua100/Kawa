@@ -4,7 +4,8 @@ import { useState } from "react";
 import { avisar } from "@/lib/api";
 import { segmentoPorId } from "@/lib/catalogo";
 import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type CtxZap, type MensagemPronta } from "@/lib/prontas";
-import { adicionarContato, salvarScript, useEstado } from "@/lib/store";
+import { registrarEnvio } from "@/lib/acoes";
+import { salvarScript, useEstado } from "@/lib/store";
 import type { Lead } from "@/lib/types";
 
 export default function MensagensProntas({ leadInicial, onCadastrar }: { leadInicial: string | null; onCadastrar: () => void }) {
@@ -44,7 +45,7 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
       {lead && (
         <>
           <p className="dica" style={{ marginTop: -6 }}>
-            {segmentoPorId(lead.segmento).nome} · {lead.responsavel ? `fala com ${lead.responsavel.split(" ")[0]}` : "sem nome do responsável (a mensagem começa com \"Oi, tudo bem?\")"} · {telOk ? `WhatsApp ${lead.telefone}` : "sem telefone válido"}
+            {segmentoPorId(lead.segmento).nome}, {lead.responsavel ? `fala com ${lead.responsavel.split(" ")[0]}` : "sem nome do responsável (a mensagem começa com \"Oi, tudo bem?\")"}, {telOk ? `WhatsApp ${lead.telefone}` : "sem telefone válido"}
           </p>
           {!telOk && (
             <div className="aviso">
@@ -77,11 +78,8 @@ function CardMensagem({ m, ctx, lead, etapaNome }: { m: MensagemPronta; ctx: Ctx
   const original = m.texto(ctx);
 
   const enviar = () => {
-    adicionarContato(lead.id, {
-      data: new Date().toISOString(),
-      tipo: "whatsapp",
-      resumo: `Enviou no WhatsApp: ${etapaNome} · ${m.titulo.replaceAll('"', "")}`,
-    });
+    registrarEnvio(lead, m.id);
+    avisar("Mensagem aberta no WhatsApp. Próximo contato agendado.");
   };
 
   const copiar = async () => {
