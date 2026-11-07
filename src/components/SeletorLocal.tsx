@@ -53,24 +53,16 @@ export function SeletorLocal({ valor, onChange, comBairro = true }: { valor: Loc
       </label>
       <label className="campo">
         <span>Cidade</span>
-        <input
-          list={`${id}-cidades`}
-          value={valor.cidade}
-          disabled={!valor.uf}
-          placeholder={valor.uf ? `Digite (${lista.length || "..."} cidades)` : "Escolha o estado"}
+        <select
+          id={`${id}-cidade`}
+          value={valida ? lista.find((c) => sem(c) === sem(valor.cidade)) ?? "" : ""}
+          disabled={!valor.uf || !lista.length}
           onChange={(e) => onChange({ ...valor, cidade: e.target.value })}
-          onBlur={() => {
-            const certa = lista.find((c) => sem(c) === sem(valor.cidade));
-            if (certa && certa !== valor.cidade) onChange({ ...valor, cidade: certa });
-          }}
-          aria-invalid={!valida}
           required
-          autoComplete="off"
-        />
-        <datalist id={`${id}-cidades`}>
-          {lista.map((c) => <option key={c} value={c} />)}
-        </datalist>
-        {!valida && <small className="erro" style={{ marginTop: 2 }}>Cidade não encontrada em {UFS[valor.uf]}</small>}
+        >
+          <option value="">{valor.uf ? (lista.length ? "Escolha a cidade" : "Carregando...") : "Escolha o estado"}</option>
+          {lista.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
       </label>
       {comBairro && (
         <label className="campo">

@@ -528,6 +528,127 @@ export const SEGMENTOS: Segmento[] = [
     gancho: "Hoje as reservas vêm mais das plataformas ou direto pelo WhatsApp?",
     oQueMostrar: "quartos, fotos, café da manhã, localização e pedido de reserva",
   },
+
+  {
+    id: "otica",
+    nome: "ótica",
+    plural: "óticas",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram ótica perto de casa para fazer óculos com a receita na mão e comparam armações e preço",
+    dores: [
+      "o cliente manda foto da receita pelo WhatsApp e pergunta preço de lente, um por um",
+      "as armações e marcas que vocês têm só aparecem para quem entra na loja",
+      "quem procura exame de vista ou ótica no bairro encontra primeiro as redes grandes",
+    ],
+    argumentos: [
+      "um site com armações, marcas e tipos de lente mostra o que vocês têm antes do cliente sair de casa",
+      "um botão para mandar a receita pelo WhatsApp já traz o orçamento pronto para fechar",
+      "aparecer no Google quando alguém procura ótica no bairro coloca vocês na frente das redes grandes",
+    ],
+    gancho: "Hoje os clientes mandam a receita pelo WhatsApp para pedir orçamento?",
+    oQueMostrar: "armações, marcas, tipos de lente, exame de vista e localização",
+  },
+  {
+    id: "material-construcao",
+    nome: "loja de material de construção",
+    plural: "lojas de material de construção",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram material de construção perto da obra, perguntam se tem o produto e o valor da entrega",
+    dores: [
+      "o cliente manda a lista de materiais pelo WhatsApp e espera o orçamento",
+      "muita gente liga só para saber se tem o produto ou se vocês entregam no bairro",
+      "o pedreiro e o cliente da obra nem sempre conhecem a loja",
+    ],
+    argumentos: [
+      "um site com os produtos, as marcas e a área de entrega responde as perguntas antes da ligação",
+      "um botão para mandar a lista de materiais pelo WhatsApp agiliza o orçamento",
+      "quem procura material de construção na região encontra vocês no Google",
+    ],
+    gancho: "Os clientes costumam mandar a lista de material pelo WhatsApp para orçamento?",
+    oQueMostrar: "produtos e marcas, entrega e região atendida, orçamento pelo WhatsApp e localização",
+  },
+  {
+    id: "vidracaria",
+    nome: "vidraçaria",
+    plural: "vidraçarias",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "pesquisam box, espelho, janela ou sacada de vidro e escolhem pelas fotos de trabalhos feitos",
+    dores: [
+      "cada orçamento precisa de foto e medida, e a conversa vai e volta várias vezes",
+      "os trabalhos prontos ficam só no celular ou no Instagram",
+      "quem procura box ou sacada de vidro encontra primeiro quem aparece no Google",
+    ],
+    argumentos: [
+      "um site com fotos de box, espelhos, janelas e sacadas mostra o acabamento de vocês",
+      "um formulário pede o tipo de serviço e as medidas, então o orçamento chega completo",
+      "aparecer no Google quando alguém procura vidraçaria na cidade traz cliente novo",
+    ],
+    gancho: "Os pedidos de orçamento chegam com foto e medida, ou vocês precisam ir pedindo?",
+    oQueMostrar: "box, espelhos, janelas, sacadas, fotos de trabalhos e pedido de orçamento",
+  },
+  {
+    id: "autopecas",
+    nome: "loja de autopeças",
+    plural: "lojas de autopeças e acessórios para carro",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram a peça ou o acessório pelo modelo do carro e querem saber se tem antes de ir",
+    dores: [
+      "o cliente pergunta se tem a peça para o carro dele pelo WhatsApp, uma por uma",
+      "os acessórios e as marcas que vocês trabalham não aparecem para quem não conhece a loja",
+      "o mecânico e o cliente final compram de quem responde primeiro",
+    ],
+    argumentos: [
+      "um site com as linhas de peças, acessórios e marcas mostra o que vocês têm antes da pergunta",
+      "um botão para mandar modelo e ano do carro pelo WhatsApp já traz o pedido certo",
+      "quem procura autopeças na região encontra vocês no Google",
+    ],
+    gancho: "Muita gente chama no WhatsApp perguntando se tem a peça para o carro dela?",
+    oQueMostrar: "peças, acessórios, marcas, consulta pelo modelo do carro e localização",
+  },
+  {
+    id: "loja-carros",
+    nome: "loja de carros",
+    plural: "lojas de carros",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "comparam carros, preços e lojas na internet antes de visitar e querem ver o estoque",
+    dores: [
+      "o estoque fica só nos portais, ao lado de várias outras lojas",
+      "o cliente pergunta se o carro ainda está disponível e qual é o valor, um por um",
+      "quem vai gastar alto quer conferir se a loja é confiável antes de ir",
+    ],
+    argumentos: [
+      "um site com o estoque, fotos e ficha de cada carro mostra tudo sem concorrente do lado",
+      "cada carro com botão de WhatsApp já avisa qual veículo a pessoa quer",
+      "mostrar a loja, a equipe e as formas de pagamento passa confiança para quem vai comprar",
+    ],
+    gancho: "Hoje os clientes chegam mais pelos portais de anúncio ou procurando a loja direto?",
+    oQueMostrar: "estoque com fotos, ficha de cada carro, financiamento, avaliação de troca e localização",
+  },
+  {
+    id: "insulfilm",
+    nome: "loja de insulfilm",
+    plural: "lojas de insulfilm automotivo",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram insulfilm pelo modelo do carro, comparam películas e preço e olham fotos de carros feitos",
+    dores: [
+      "o cliente pergunta preço pelo WhatsApp sem dizer o carro nem a película que quer",
+      "as fotos dos carros feitos ficam espalhadas no Instagram",
+      "pouca gente entende a diferença entre as películas e acaba escolhendo só pelo preço",
+    ],
+    argumentos: [
+      "um site explica os tipos de película, o que é permitido por lei e a garantia",
+      "um formulário pede o modelo do carro e a película, então o orçamento chega pronto",
+      "fotos de carros feitos mostram o acabamento e ajudam a vender a película melhor",
+    ],
+    gancho: "Os clientes já chegam sabendo qual película querem, ou vocês precisam explicar tudo pelo WhatsApp?",
+    oQueMostrar: "tipos de película, fotos de carros feitos, garantia, orçamento pelo modelo do carro e localização",
+  },
 ];
 
 /** Termo usado na busca do Google Maps para cada nicho. */
@@ -554,6 +675,12 @@ export const TERMO_MAPS: Record<SegmentoId, string> = {
   buffet: "buffet de festas",
   "energia-solar": "energia solar",
   pousada: "pousada",
+  otica: "ótica",
+  "material-construcao": "material de construção",
+  vidracaria: "vidraçaria",
+  autopecas: "autopeças",
+  "loja-carros": "loja de carros",
+  insulfilm: "insulfilm automotivo",
 };
 
 /**
@@ -584,6 +711,12 @@ export const POTENCIAL: Record<SegmentoId, 1 | 2 | 3> = {
   transportadora: 2,
   restaurante: 1,
   "loja-local": 1,
+  otica: 2,
+  "material-construcao": 2,
+  vidracaria: 2,
+  autopecas: 2,
+  "loja-carros": 3,
+  insulfilm: 2,
 };
 
 /** Nichos em ordem de potencial, para os atalhos da busca. */
@@ -599,6 +732,12 @@ export const canalNome = (id: Canal) => CANAIS.find((c) => c.id === id)?.nome ??
  * Evita mensagem falando de dentista para uma barbearia quando a busca foi feita com outro nicho selecionado.
  */
 const PISTAS: [SegmentoId, RegExp][] = [
+  ["insulfilm", /insul ?film|pel[ií]cula/i],
+  ["otica", /[oó]tica|[oó]culos|optometr/i],
+  ["vidracaria", /vidra[cç]aria|vidro|box para banheiro|esquadria/i],
+  ["material-construcao", /material de constru|materiais de constru|home ?center|dep[oó]sito de constru/i],
+  ["autopecas", /auto ?pe[cç]as|pe[cç]as automotivas|acess[oó]rios automotivos|acess[oó]rios para (carro|ve[ií]culo)/i],
+  ["loja-carros", /revenda de (carros|ve[ií]culos)|concession[aá]ria|loja de (carros|ve[ií]culos)|seminovos|multimarcas|ve[ií]culos usados/i],
   ["barbearia", /barbear|barber/i],
   ["clinica-estetica", /est[eé]tica (facial|corporal)|cl[ií]nica de est[eé]tica|esteticista|depila|harmoniza|spa\b|sobrancelha|c[ií]lios|micropigment/i],
   ["estetica-automotiva", /est[eé]tica automotiva|detail|lava.?r[aá]pido|lava.?jato|polimento|envelopament|insulfilm|car ?wash/i],

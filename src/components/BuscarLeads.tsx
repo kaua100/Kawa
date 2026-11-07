@@ -193,7 +193,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
 
       <section className="nichos" aria-label="Nichos">
         <div className="nichos-lista">
-          {NICHOS_EM_ALTA.slice(0, 10).map((s) => (
+          {NICHOS_EM_ALTA.map((s) => (
             <button key={s.id} className={`nicho ${segmento === s.id ? "ativo" : ""}`} onClick={() => escolherNicho(s.id)} aria-pressed={segmento === s.id}>
               <span>{s.nome.charAt(0).toUpperCase() + s.nome.slice(1)}</span>
               <span className="potencial" aria-label={`Potencial ${POTENCIAL[s.id]} de 3`}>
@@ -209,24 +209,6 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
         onSubmit={(e) => { e.preventDefault(); if (temToken) buscar(); else setErro("Adicione um token da Apify."); }}
       >
         <div className="grade g3">
-          <label className="campo">
-            <span>Nicho</span>
-            <select value={segmento} onChange={(e) => escolherNicho(e.target.value as SegmentoId)}>
-              {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select>
-          </label>
-          <label className="campo">
-            <span>O que buscar no Maps</span>
-            <input
-              value={busca}
-              onChange={(e) => {
-                setBusca(e.target.value);
-                const s = detectarSegmento(e.target.value);
-                if (s) setSegmento(s);
-              }}
-              required
-            />
-          </label>
           <SeletorLocal valor={lugar} onChange={mudarLugar} />
           <label className="campo">
             <span>Quantidade</span>

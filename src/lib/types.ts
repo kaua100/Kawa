@@ -20,7 +20,13 @@ export type SegmentoId =
   | "construcao"
   | "buffet"
   | "energia-solar"
-  | "pousada";
+  | "pousada"
+  | "otica"
+  | "material-construcao"
+  | "vidracaria"
+  | "autopecas"
+  | "loja-carros"
+  | "insulfilm";
 
 export type CategoriaId =
   | "primeira-ligacao"
