@@ -33,11 +33,6 @@ export default function Central({ aba, setAba, leadInicial, temIA, onCadastrar }
 
   return (
     <>
-      <div className="topo">
-        <div>
-          <h1>Mensagens</h1>
-        </div>
-      </div>
       <div className="abas">
         {(
           [

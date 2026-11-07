@@ -49,7 +49,7 @@ export function BotaoMaps({ lead, compacto }: { lead: Lead; compacto?: boolean }
   );
 }
 
-export function SeloTemperatura({ lead, dados, mostrarPontos = true }: { lead?: Lead; dados?: DadosQualificacao; mostrarPontos?: boolean }) {
+export function SeloTemperatura({ lead, dados, mostrarPontos = true, soBarras }: { lead?: Lead; dados?: DadosQualificacao; mostrarPontos?: boolean; soBarras?: boolean }) {
   const q = qualificar((dados ?? lead)!);
   const nome = q.temperatura === "quente" ? "Quente" : q.temperatura === "morno" ? "Morno" : "Frio";
   const barras = q.temperatura === "quente" ? 3 : q.temperatura === "morno" ? 2 : 1;
@@ -58,7 +58,18 @@ export function SeloTemperatura({ lead, dados, mostrarPontos = true }: { lead?: 
       <span className="termo-barras" aria-hidden>
         {[1, 2, 3].map((i) => <i key={i} className={i <= barras ? "on" : ""} />)}
       </span>
-      {nome}{mostrarPontos ? ` ${q.pontos}` : ""}
+      {soBarras ? <span className="sr">{nome}</span> : <>{nome}{mostrarPontos ? ` ${q.pontos}` : ""}</>}
     </span>
   );
+}
+
+const CORES = ["#2f7bff", "#19a34a", "#e07b39", "#7c5cc4", "#e2483d", "#0ea5a4", "#c89400", "#db2777"];
+
+/** Círculo com as iniciais da empresa, cor fixa por nome. */
+export function Avatar({ nome }: { nome: string }) {
+  const limpo = nome.replace(/[^\p{L}\p{N} ]/gu, " ").trim().split(/\s+/).filter((p) => p.length > 2 || /\d/.test(p));
+  const ini = ((limpo[0]?.[0] ?? nome[0] ?? "?") + (limpo[1]?.[0] ?? "")).toUpperCase();
+  let h = 0;
+  for (const ch of nome) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return <span className="avatar" style={{ background: CORES[h % CORES.length] }} aria-hidden>{ini}</span>;
 }

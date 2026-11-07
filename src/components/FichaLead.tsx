@@ -180,7 +180,6 @@ function Roteiro({ lead, vendedor, onMensagens }: { lead: Lead; vendedor: string
   return (
     <section className="roteiro">
       <div className="roteiro-cab">
-        <h3>Conversa</h3>
         <div className="alternar peq" role="tablist" aria-label="Caminho da conversa">
           {(Object.keys(ROTEIROS) as RotaId[]).map((r) => (
             <button
@@ -324,7 +323,6 @@ function Negocio({ lead }: { lead: Lead }) {
   return (
     <section className="negocio">
       <div className="preco">
-        <span className="preco-rot">Quanto cobrar</span>
         <strong>{reais(preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
         <span className={`pot pot-${preco.potencial}`} title={preco.fatores.join("\n")}>
           Potencial {preco.potencial === "medio" ? "médio" : preco.potencial}

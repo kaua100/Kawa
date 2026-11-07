@@ -174,11 +174,6 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
 
   return (
     <>
-      <div className="topo">
-        <div>
-          <h1>Buscar empresas</h1>
-        </div>
-      </div>
 
       <section className="nichos" aria-label="Nichos">
         <div className="nichos-lista">

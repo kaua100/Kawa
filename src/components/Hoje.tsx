@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { adiar, calcularMetricas, filaDeHoje, reais, sugerirPreco, sugestao, type ItemFila } from "@/lib/acoes";
 import { STATUS, segmentoPorId } from "@/lib/catalogo";
 import { useEstado } from "@/lib/store";
-import { BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
+import { Avatar, BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
+import { IcAmanha } from "./Icones";
 
 const POR_PAGINA = 15;
 
@@ -28,11 +29,6 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
             <span className="hoje-num">{fila.length}</span>
             <span className="hoje-frase">{fila.length === 1 ? "para chamar hoje" : "para chamar hoje"}</span>
           </h1>
-          {fila.length > 0 && (
-            <p className="hoje-resumo">
-              {retornos.length} {retornos.length === 1 ? "retorno" : "retornos"}, {novos.length} {novos.length === 1 ? "novo" : "novos"}
-            </p>
-          )}
         </div>
         <button className="hoje-semana" onClick={onResultados} aria-label="Ver resultados da semana">
           <span><b>{semana.chamados}</b>chamados</span>
@@ -49,7 +45,7 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
           <button className="btn prim grande" onClick={onBuscar}>Buscar empresas</button>
         </div>
       ) : (
-        <ol className="fila">
+        <ol className="grade-cartoes">
           {fila.slice(0, limite).map((item) => (
             <Linha key={item.lead.id} item={item} onAbrir={onAbrir} />
           ))}
@@ -65,45 +61,47 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
 }
 
 function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => void }) {
-  const { lead, motivo, atraso } = item;
+  const { lead, motivo } = item;
   const { msg } = sugestao(lead);
   const selo =
     motivo === "novo" ? <span className="tag azul">Novo</span>
-    : motivo === "atrasado" ? <span className="tag vermelho">{atraso === 1 ? "Atrasado 1 dia" : `Atrasado ${atraso} dias`}</span>
+    : motivo === "atrasado" ? <span className="tag vermelho">Atrasado</span>
     : <span className="tag amarelo">Retorno</span>;
 
   return (
     <li
-      className="fila-item"
+      className={`cartao-lead m-${motivo}`}
       role="button"
       tabIndex={0}
       onClick={() => onAbrir(lead.id)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onAbrir(lead.id))}
     >
-      <div className="fila-info">
-        <div className="fila-nome">
+      <div className="cl-topo">
+        <Avatar nome={lead.empresa} />
+        <div className="cl-nome">
           <b>{lead.empresa}</b>
-          {selo}
-          <SeloTemperatura lead={lead} mostrarPontos={false} />
+          <small>{segmentoPorId(lead.segmento).nome}{lead.cidade ? `, ${lead.cidade.split("/")[0]}` : ""}</small>
         </div>
-        <div className="fila-sub">
-          <span>{segmentoPorId(lead.segmento).nome}{lead.cidade ? `, ${lead.cidade.split("/")[0]}` : ""}</span>
-          <span className="fila-msg">{msg.titulo.replaceAll('"', "")}</span>
-        </div>
+        <strong className="cl-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
       </div>
-      <strong className="fila-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
-      <div className="fila-acoes">
-        <BotaoZap lead={lead} />
+      <div className="cl-meio">
+        {selo}
+        <span className="cl-msg">{msg.titulo.replaceAll('"', "")}</span>
+            <SeloTemperatura lead={lead} soBarras />
+      </div>
+      <div className="cl-acoes">
+        <BotaoZap lead={lead} rotulo="Chamar no WhatsApp" />
         <BotaoMaps lead={lead} compacto />
         <button
-          className="btn"
+          className="btn icone"
           onClick={(e) => {
             e.stopPropagation();
             adiar(lead, 1);
           }}
-          title="Tirar da lista de hoje e mostrar amanhã"
+          title="Deixar para amanhã"
+          aria-label="Deixar para amanhã"
         >
-          Amanhã
+          <IcAmanha />
         </button>
       </div>
     </li>

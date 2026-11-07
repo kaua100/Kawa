@@ -32,7 +32,6 @@ export default function Resultados() {
     <>
       <div className="topo">
         <div>
-          <h1>Resultados</h1>
         </div>
         <div className="alternar" role="tablist" aria-label="Período">
           {PERIODOS.map((p) => (
@@ -56,7 +55,6 @@ export default function Resultados() {
       </section>
 
       <section className="card pad">
-        <h2 className="secao-titulo">Funil</h2>
         <ol className="conversao">
           {etapas.map((e, i) => (
             <li key={e.nome} className={`conv-${i}`}>
@@ -73,7 +71,7 @@ export default function Resultados() {
 
       <div className="resultados-grade">
         <section className="card pad">
-          <h2 className="secao-titulo">Últimos 14 dias</h2>
+          <span className="rotulo">14 dias</span>
           <div className="barras" role="img" aria-label="Gráfico de contatos por dia">
             {m.porDia.map((d) => (
               <div key={d.dia} className="barra-col" title={`${d.dia.slice(8, 10)}/${d.dia.slice(5, 7)}: ${d.mensagens}`}>
@@ -86,7 +84,6 @@ export default function Resultados() {
         </section>
 
         <section className="card pad">
-          <h2 className="secao-titulo">Por nicho</h2>
           {m.porNicho.length === 0 ? (
             <p className="dica">Sem dados ainda</p>
           ) : (

@@ -80,6 +80,7 @@ function App({ email }: { email: string }) {
   const integ = useIntegracoes();
   const [rota, setRota] = useState<Rota>({ tela: "hoje", ficha: null });
   const [toast, setToast] = useState("");
+  const [menuConta, setMenuConta] = useState(false);
 
   // Navegação ligada ao histórico do navegador: o botão voltar do celular funciona.
   useEffect(() => {
@@ -169,16 +170,22 @@ function App({ email }: { email: string }) {
           ))}
         </nav>
         <div className="side-rodape">
-          <label htmlFor="vendedor">Seu nome nas mensagens</label>
-          <input id="vendedor" value={vendedor} onChange={(e) => definirVendedor(e.target.value)} placeholder="Ex.: Kaua" />
-          <div className="side-links">
-            <button onClick={exportar}>Fazer backup</button>
-            <button onClick={importar}>Restaurar</button>
-          </div>
-          <div className="conta">
-            <small>{email}</small>
-            <button onClick={() => supabase.auth.signOut()} aria-label="Sair da conta" title="Sair"><IcSair /></button>
-          </div>
+          {menuConta && (
+            <div className="conta-menu" role="dialog" aria-label="Sua conta">
+              <label htmlFor="vendedor">Seu nome</label>
+              <input id="vendedor" value={vendedor} onChange={(e) => definirVendedor(e.target.value)} placeholder="Ex.: Kaua" />
+              <button onClick={exportar}>Baixar backup</button>
+              <button onClick={importar}>Restaurar backup</button>
+              <button onClick={() => supabase.auth.signOut()}><IcSair /> Sair</button>
+            </div>
+          )}
+          <button className="conta" onClick={() => setMenuConta((v) => !v)} aria-expanded={menuConta}>
+            <span className="conta-avatar">{(vendedor || email || "?")[0].toUpperCase()}</span>
+            <span className="conta-nome">
+              <b>{vendedor || "Seu nome"}</b>
+              <small>{email}</small>
+            </span>
+          </button>
         </div>
       </aside>
 

@@ -6,7 +6,7 @@ import { dataCurta, hojeISO, proximoEfetivo, qualificar, reais, sugerirPreco } f
 import { SEGMENTOS, STATUS, segmentoPorId } from "@/lib/catalogo";
 import { salvarLead, useEstado } from "@/lib/store";
 import type { Lead, StatusLead } from "@/lib/types";
-import { BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
+import { Avatar, BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
 import FormLead, { leadVazio } from "./FormLead";
 
 type Visao = "lista" | "funil";
@@ -48,12 +48,11 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
     <>
       <div className="topo">
         <div>
-          <h1>Leads</h1>
-          <p>{leads.length} {leads.length === 1 ? "empresa" : "empresas"}</p>
+          <p className="contador"><b>{leads.length}</b> {leads.length === 1 ? "empresa" : "empresas"}</p>
         </div>
         <div className="topo-acoes">
           <div className="alternar" role="tablist" aria-label="Forma de ver os leads">
-            <button role="tab" aria-selected={visao === "lista"} className={visao === "lista" ? "ativo" : ""} onClick={() => setVisao("lista")}>Lista</button>
+            <button role="tab" aria-selected={visao === "lista"} className={visao === "lista" ? "ativo" : ""} onClick={() => setVisao("lista")}>Cards</button>
             <button role="tab" aria-selected={visao === "funil"} className={visao === "funil" ? "ativo" : ""} onClick={() => setVisao("funil")}>Funil</button>
           </div>
           <button className="btn prim" onClick={() => setFormulario(leadVazio())}>Novo lead</button>
@@ -73,7 +72,7 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
           <div className="filtros-barra">
             <input className="sel" placeholder="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar" />
             <select className="sel" value={filtroSeg} onChange={(e) => setFiltroSeg(e.target.value)} aria-label="Segmento">
-              <option value="">Todos os segmentos</option>
+              <option value="">Todos os nichos</option>
               {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
             </select>
             {visao === "lista" && (
@@ -83,8 +82,8 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
               </select>
             )}
             <select className="sel" value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} aria-label="Ordenar">
-              <option value="quentes">Mais quentes primeiro</option>
-              <option value="valor">Maior valor primeiro</option>
+              <option value="quentes">Mais quentes</option>
+              <option value="valor">Maior valor</option>
               <option value="proximo">Próximo contato</option>
               <option value="recentes">Mais recentes</option>
             </select>
@@ -125,40 +124,37 @@ function Proximo({ lead }: { lead: Lead }) {
 function Lista({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => void }) {
   if (leads.length === 0) return <div className="card vazio">Nenhum lead com esses filtros.</div>;
   return (
-    <div className="card lista">
+    <ul className="grade-cartoes">
       {leads.map((l) => (
-        <div
+        <li
           key={l.id}
-          className="linha"
+          className={`cartao-lead e-${l.status}`}
           role="button"
           tabIndex={0}
           onClick={() => onAbrir(l.id)}
           onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onAbrir(l.id))}
         >
-          <div className="linha-info">
-            <b>{l.empresa}</b>
-            <small>
-              {segmentoPorId(l.segmento).nome}
-              {l.cidade ? ` em ${l.cidade}` : ""}
-              {!l.site ? ", sem site" : ""}
-            </small>
+          <div className="cl-topo">
+            <Avatar nome={l.empresa} />
+            <div className="cl-nome">
+              <b>{l.empresa}</b>
+              <small>{segmentoPorId(l.segmento).nome}{l.cidade ? `, ${l.cidade.split("/")[0]}` : ""}</small>
+            </div>
+            <strong className="cl-valor">{reais(l.valor ?? sugerirPreco(l).sugerido)}</strong>
           </div>
-          <div className="linha-meta">
-            <SeloTemperatura lead={l} mostrarPontos={false} />
+          <div className="cl-meio">
             <span className={`etapa-pill st-${l.status}`}>{STATUS.find((s) => s.id === l.status)?.nome}</span>
+            {!l.site && <span className="tag laranja">Sem site</span>}
             <Proximo lead={l} />
+            <SeloTemperatura lead={l} soBarras />
           </div>
-          <div className="linha-valor">
-            <strong>{reais(l.valor ?? sugerirPreco(l).sugerido)}</strong>
-            <small>{l.valor ? (l.status === "fechado" ? "fechado" : "proposta") : "sugerido"}</small>
-          </div>
-          <div className="linha-acoes">
-            <BotaoZap lead={l} compacto />
+          <div className="cl-acoes">
+            <BotaoZap lead={l} rotulo="WhatsApp" />
             <BotaoMaps lead={l} compacto />
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
@@ -203,7 +199,7 @@ function Funil({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => voi
                 >
                   <div className="cartao-topo">
                     <b>{l.empresa}</b>
-                    <SeloTemperatura lead={l} mostrarPontos={false} />
+                    <SeloTemperatura lead={l} soBarras />
                   </div>
                   <small>{l.cidade || segmentoPorId(l.segmento).nome}, {reais(l.valor ?? sugerirPreco(l).sugerido)}</small>
                   <div className="cartao-pe">

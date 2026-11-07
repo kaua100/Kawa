@@ -54,3 +54,6 @@ export const IcGrafico = () => (
 export const IcSair = () => (
   <svg {...base}><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10" /></svg>
 );
+export const IcAmanha = () => (
+  <svg {...base}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>
+);
