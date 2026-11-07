@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { adiar, calcularMetricas, filaDeHoje, reais, sugerirPreco, sugestao, type ItemFila } from "@/lib/acoes";
+import { FASES, faseDoLead, oQueFazer, adiar, calcularMetricas, filaDeHoje, reais, sugerirPreco, sugestao, type ItemFila } from "@/lib/acoes";
 import { STATUS, segmentoPorId } from "@/lib/catalogo";
 import { useEstado } from "@/lib/store";
 import { Avatar, BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
 import { IcAmanha } from "./Icones";
+import { BarraFases } from "./Leads";
 
 const POR_PAGINA = 15;
 
@@ -84,13 +85,14 @@ function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => voi
         </div>
         <strong className="cl-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
       </div>
+      <BarraFases lead={lead} />
       <div className="cl-meio">
-        {selo}
-        <span className="cl-msg">{msg.titulo.replaceAll('"', "")}</span>
+        <span className="cl-fase">{FASES[faseDoLead(lead)].nome}</span>
+        <span className={`cl-fazer p-${oQueFazer(lead).tipo}`}>{oQueFazer(lead).texto}</span>
             <SeloTemperatura lead={lead} soBarras />
       </div>
       <div className="cl-acoes">
-        <BotaoZap lead={lead} rotulo="Chamar no WhatsApp" />
+        <BotaoZap lead={lead} rotulo={oQueFazer(lead).tipo === "lembrete" ? "Enviar lembrete" : `Enviar: ${msg.titulo.replaceAll('"', "")}`} />
         <BotaoMaps lead={lead} compacto />
         <button
           className="btn icone"

@@ -96,7 +96,7 @@ export function sugestao(lead: Lead): { etapa: Etapa; msg: MensagemPronta } {
   let id: string;
   switch (lead.status) {
     case "fechado":
-      id = primeiroNaoEnviado(["fechamento", "pos-entrega", "pos-30dias", "pos-indicacao"], "pos-indicacao");
+      id = primeiroNaoEnviado(["pos-entrega", "pos-30dias", "pos-indicacao"], "pos-indicacao");
       break;
     case "perdido":
       id = "recuperacao";
@@ -486,4 +486,48 @@ export function calcularMetricas(leads: Lead[], periodo: Periodo): Metricas {
     porNicho: [...nicho.entries()].map(([segmento, v]) => ({ segmento, ...v })).filter((x) => x.chamados || x.fechados).sort((a, b) => b.fechados - a.fechados || b.chamados - a.chamados),
     porDia,
   };
+}
+
+/* ---------- Fases da conversa (quadro) ---------- */
+
+export interface Fase {
+  id: string;
+  nome: string;
+  msgs: string[]; // mensagens que colocam o lead nesta fase
+}
+
+/** Colunas do quadro: o lead fica na fase da última mensagem do roteiro que você mandou. */
+export const FASES: Fase[] = [
+  { id: "chamar", nome: "Para chamar", msgs: [] },
+  { id: "abordagem", nome: "Abordagem", msgs: ["rot-abordagem", "inicio-ola", "inicio-apresentando", "inicio-elogio"] },
+  { id: "apresentacao", nome: "Apresentação", msgs: ["rot-apresentacao", "primeira-direta", "gancho-site", "gancho-clientes"] },
+  { id: "mostrar", nome: "Mostrar ideia", msgs: ["rot-permissao", "gancho-ideia"] },
+  { id: "modelo", nome: "Modelo enviado", msgs: ["rot-modelo", "demo-envio", "resposta-explicar"] },
+  { id: "explicacao", nome: "Explicação", msgs: ["rot-explica", "reuniao-convite", "reuniao-confirmar"] },
+  { id: "valor", nome: "Valor enviado", msgs: ["rot-valor", "proposta-envio", "proposta-cobrar"] },
+  { id: "fechado", nome: "Fechado", msgs: ["fechamento"] },
+];
+
+export function faseDoLead(lead: Lead): number {
+  if (lead.status === "fechado") return FASES.length - 1;
+  const enviados = new Set(lead.contatos.map((c) => c.msgId).filter(Boolean) as string[]);
+  let fase = 0;
+  FASES.forEach((f, i) => {
+    if (f.msgs.some((m) => enviados.has(m))) fase = i;
+  });
+  return fase;
+}
+
+export type Pendencia = "enviar" | "aguardar" | "lembrete" | "fechado" | "perdido";
+
+/** O que precisa ser feito com o lead agora, em uma frase curta. */
+export function oQueFazer(lead: Lead): { tipo: Pendencia; texto: string } {
+  if (lead.status === "perdido") return { tipo: "perdido", texto: "Perdido" };
+  const prox = sugestao(lead).msg;
+  if (lead.status === "fechado") return { tipo: "fechado", texto: `Pós-venda: ${prox.titulo.replaceAll('"', "").toLowerCase()}` };
+  const dias = diasDesdeUltimoEnvio(lead);
+  if (dias === null) return { tipo: "enviar", texto: "Mandar a abordagem" };
+  if (dias === 0) return { tipo: "aguardar", texto: "Aguardando resposta" };
+  if (dias >= 2 && FOLLOWUPS.includes(prox.id)) return { tipo: "lembrete", texto: `Sem resposta há ${dias} dias` };
+  return { tipo: "enviar", texto: `Enviar: ${prox.titulo.replaceAll('"', "").toLowerCase()}` };
 }

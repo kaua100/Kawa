@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { avisar } from "@/lib/api";
-import { dataCurta, hojeISO, proximoEfetivo, qualificar, reais, sugerirPreco } from "@/lib/acoes";
+import { dataCurta, FASES, faseDoLead, hojeISO, oQueFazer, proximoEfetivo, qualificar, reais, sugerirPreco, sugestao } from "@/lib/acoes";
 import { SEGMENTOS, STATUS, segmentoPorId } from "@/lib/catalogo";
 import { salvarLead, useEstado } from "@/lib/store";
 import type { Lead, StatusLead } from "@/lib/types";
@@ -53,7 +53,7 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
         <div className="topo-acoes">
           <div className="alternar" role="tablist" aria-label="Forma de ver os leads">
             <button role="tab" aria-selected={visao === "lista"} className={visao === "lista" ? "ativo" : ""} onClick={() => setVisao("lista")}>Cards</button>
-            <button role="tab" aria-selected={visao === "funil"} className={visao === "funil" ? "ativo" : ""} onClick={() => setVisao("funil")}>Funil</button>
+            <button role="tab" aria-selected={visao === "funil"} className={visao === "funil" ? "ativo" : ""} onClick={() => setVisao("funil")}>Fases</button>
           </div>
           <button className="btn prim" onClick={() => setFormulario(leadVazio())}>Novo lead</button>
         </div>
@@ -142,14 +142,14 @@ function Lista({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => voi
             </div>
             <strong className="cl-valor">{reais(l.valor ?? sugerirPreco(l).sugerido)}</strong>
           </div>
+          <BarraFases lead={l} />
           <div className="cl-meio">
-            <span className={`etapa-pill st-${l.status}`}>{STATUS.find((s) => s.id === l.status)?.nome}</span>
-            {!l.site && <span className="tag laranja">Sem site</span>}
-            <Proximo lead={l} />
+            <span className="cl-fase">{FASES[faseDoLead(l)].nome}</span>
+            <span className={`cl-fazer p-${oQueFazer(l).tipo}`}>{oQueFazer(l).texto}</span>
             <SeloTemperatura lead={l} soBarras />
           </div>
           <div className="cl-acoes">
-            <BotaoZap lead={l} rotulo="WhatsApp" />
+            <BotaoZap lead={l} rotulo={oQueFazer(l).tipo === "lembrete" ? "Enviar lembrete" : `Enviar: ${sugestao(l).msg.titulo.replaceAll('"', "")}`} />
             <BotaoMaps lead={l} compacto />
           </div>
         </li>
@@ -159,72 +159,65 @@ function Lista({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => voi
 }
 
 function Funil({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => void }) {
-  const [sobre, setSobre] = useState<StatusLead | null>(null);
-  const { leads: todos } = useEstado();
-  const mover = (id: string, status: StatusLead) => {
-    const l = todos.find((x) => x.id === id);
-    if (l && l.status !== status) salvarLead({ ...l, status });
-  };
-
+  const ativos = leads.filter((l) => l.status !== "perdido");
+  const perdidos = leads.length - ativos.length;
   return (
-    <div className="funil">
-      {STATUS.map((s) => {
-        const col = leads.filter((l) => l.status === s.id);
-        return (
-          <section
-            key={s.id}
-            className={`coluna st-${s.id} ${sobre === s.id ? "sobre" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setSobre(s.id); }}
-            onDragLeave={() => setSobre(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setSobre(null);
-              mover(e.dataTransfer.getData("text/plain"), s.id);
-            }}
-          >
-            <header>
-              <h2>{s.nome}</h2>
-              <span>{col.length}</span>
-            </header>
-            <div className="coluna-cards">
-              {col.map((l) => (
-                <article
-                  key={l.id}
-                  className="cartao"
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/plain", l.id)}
-                  onClick={() => onAbrir(l.id)}
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && onAbrir(l.id)}
-                >
-                  <div className="cartao-topo">
-                    <b>{l.empresa}</b>
-                    <SeloTemperatura lead={l} soBarras />
-                  </div>
-                  <small>{l.cidade || segmentoPorId(l.segmento).nome}, {reais(l.valor ?? sugerirPreco(l).sugerido)}</small>
-                  <div className="cartao-pe">
-                    <Proximo lead={l} />
-                    <span className="cartao-acoes">
-                      <BotaoZap lead={l} compacto />
-                      <BotaoMaps lead={l} compacto />
-                    </span>
-                  </div>
-                  <select
-                    className="sel mover"
-                    value={l.status}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => mover(l.id, e.target.value as StatusLead)}
-                    aria-label={`Mover ${l.empresa} para outra etapa`}
-                  >
-                    {STATUS.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
-                  </select>
-                </article>
-              ))}
-              {col.length === 0 && <p className="coluna-vazia">Vazio</p>}
-            </div>
-          </section>
-        );
-      })}
+    <>
+      <div className="quadro">
+        {FASES.map((f, i) => {
+          const col = ativos.filter((l) => faseDoLead(l) === i);
+          return (
+            <section key={f.id} className={`fase fase-${i}`}>
+              <header>
+                <span className="fase-num">{i === FASES.length - 1 ? "✓" : i}</span>
+                <h2>{f.nome}</h2>
+                <span className="fase-qtd">{col.length}</span>
+              </header>
+              <div className="fase-cards">
+                {col.map((l) => <CartaoFase key={l.id} lead={l} onAbrir={onAbrir} />)}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      {perdidos > 0 && <p className="dica" style={{ marginTop: 10 }}>{perdidos} {perdidos === 1 ? "perdido" : "perdidos"} fora do quadro</p>}
+    </>
+  );
+}
+
+function CartaoFase({ lead, onAbrir }: { lead: Lead; onAbrir: (id: string) => void }) {
+  const fazer = oQueFazer(lead);
+  const prox = sugestao(lead).msg;
+  return (
+    <article
+      className={`cartao-fase p-${fazer.tipo}`}
+      onClick={() => onAbrir(lead.id)}
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onAbrir(lead.id)}
+    >
+      <div className="cf-topo">
+        <b>{lead.empresa}</b>
+        <span>{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</span>
+      </div>
+      <BarraFases lead={lead} />
+      <p className="cf-fazer">{fazer.texto}</p>
+      {fazer.tipo !== "perdido" && (
+        <div className="cf-acoes">
+          <BotaoZap lead={lead} rotulo={fazer.tipo === "lembrete" ? "Lembrete" : prox.titulo.replaceAll('"', "")} />
+          <BotaoMaps lead={lead} compacto />
+        </div>
+      )}
+    </article>
+  );
+}
+
+export function BarraFases({ lead }: { lead: Lead }) {
+  const atual = faseDoLead(lead);
+  return (
+    <div className="barra-fases" aria-label={`Fase ${atual} de ${FASES.length - 1}: ${FASES[atual].nome}`}>
+      {FASES.slice(1).map((f, i) => (
+        <i key={f.id} className={i + 1 <= atual ? "on" : ""} title={f.nome} />
+      ))}
     </div>
   );
 }
