@@ -5,6 +5,7 @@ import BuscarLeads from "@/components/BuscarLeads";
 import Central, { type AbaCentral } from "@/components/Central";
 import FichaLead from "@/components/FichaLead";
 import Hoje from "@/components/Hoje";
+import { PassosIphone, useInstalar } from "@/components/Instalar";
 import { IcBusca, IcGrafico, IcHoje, IcLeads, IcMsg, IcSair, IcVoltar } from "@/components/Icones";
 import Leads from "@/components/Leads";
 import Login, { NovaSenha } from "@/components/Login";
@@ -81,6 +82,8 @@ function App({ email }: { email: string }) {
   const [rota, setRota] = useState<Rota>({ tela: "hoje", ficha: null });
   const [toast, setToast] = useState("");
   const [menuConta, setMenuConta] = useState(false);
+  const [passosIphone, setPassosIphone] = useState(false);
+  const inst = useInstalar();
 
   // Navegação ligada ao histórico do navegador: o botão voltar do celular funciona.
   useEffect(() => {
@@ -176,6 +179,9 @@ function App({ email }: { email: string }) {
               <input id="vendedor" value={vendedor} onChange={(e) => definirVendedor(e.target.value)} placeholder="Ex.: Kaua" />
               <button onClick={exportar}>Baixar backup</button>
               <button onClick={importar}>Restaurar backup</button>
+              {!inst.instalado && (inst.podeInstalar || inst.iphone) && (
+                <button onClick={() => (inst.iphone ? setPassosIphone(true) : inst.instalar())}>Instalar app</button>
+              )}
               <button onClick={() => supabase.auth.signOut()}><IcSair /> Sair</button>
             </div>
           )}
@@ -243,6 +249,7 @@ function App({ email }: { email: string }) {
         />
       )}
 
+      {passosIphone && <PassosIphone onFechar={() => setPassosIphone(false)} />}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

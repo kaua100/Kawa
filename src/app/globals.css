@@ -792,3 +792,21 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
   .nav-mobile button { font-size: 12.5px; padding: 6px 0; }
   .nm-icone { width: 52px; height: 32px; }
 }
+
+/* ---------- Instalar app ---------- */
+.faixa-instalar {
+  display: flex; align-items: center; gap: 12px; background: var(--sup); border: 1px solid var(--linha);
+  border-radius: 16px; padding: 12px 12px 12px 14px; margin-bottom: 14px;
+}
+.faixa-instalar img { border-radius: 12px; flex: 0 0 auto; }
+.faixa-instalar div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.faixa-instalar b { font-family: var(--f-titulo); font-size: 16px; }
+.faixa-instalar small { color: var(--suave); font-size: 13.5px; }
+.faixa-instalar .btn.icone { border: 0; width: 40px; height: 40px; min-height: 0; }
+.passos-iphone { width: min(420px, 100%); }
+.passos-iphone h2 { margin-top: 0; }
+.passos-iphone ol { padding-left: 20px; margin: 0 0 18px; display: flex; flex-direction: column; gap: 10px; font-size: 16px; }
+.passos-iphone .btn { width: 100%; }
+@media (display-mode: standalone) {
+  .barra-mobile { padding-top: calc(10px + env(safe-area-inset-top)); }
+}

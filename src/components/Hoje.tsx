@@ -7,6 +7,7 @@ import { useEstado } from "@/lib/store";
 import { Avatar, BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
 import { IcAmanha } from "./Icones";
 import { BarraFases } from "./Leads";
+import { FaixaInstalar } from "./Instalar";
 
 const POR_PAGINA = 15;
 
@@ -23,6 +24,7 @@ export default function Hoje({ onAbrir, onBuscar, onFunil, onResultados }: { onA
 
   return (
     <>
+      <FaixaInstalar />
       <section className="hoje-cab">
         <div className="hoje-esq">
           <p className="hoje-data">{data.charAt(0).toUpperCase() + data.slice(1)}{nome ? `, ${nome}` : ""}</p>

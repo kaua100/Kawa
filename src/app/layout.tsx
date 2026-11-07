@@ -4,6 +4,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Mindstrat Prospector",
   description: "Prospecção de clientes para sites: busca no Maps, mensagens prontas no WhatsApp e resultados.",
+  applicationName: "Mindstrat",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/favicon.png", sizes: "32x32" }, { url: "/icone-192.png", sizes: "192x192" }],
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: { capable: true, title: "Mindstrat", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
