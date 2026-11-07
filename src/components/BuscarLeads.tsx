@@ -72,6 +72,14 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   function escolherNicho(s: SegmentoId) {
     setSegmento(s);
     setBusca(TERMO_MAPS[s]);
+    if (!rodando) limpar();
+  }
+
+  function limpar() {
+    setEncontrados(null);
+    setMarcados(new Set());
+    setTemp("");
+    setSoSemSite(false);
   }
 
   async function buscar() {
@@ -288,9 +296,12 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
             <div>
               <h2>{encontrados.length} encontradas</h2>
             </div>
-            <button className="btn prim" onClick={importar} disabled={!marcados.size}>
-              Importar {marcados.size} {marcados.size === 1 ? "lead" : "leads"}
-            </button>
+            <div className="resultados-acoes">
+              <button className="btn" onClick={limpar}>Limpar</button>
+              <button className="btn prim" onClick={importar} disabled={!marcados.size}>
+                Importar {marcados.size} {marcados.size === 1 ? "lead" : "leads"}
+              </button>
+            </div>
           </div>
           <div className="resultados-filtros">
             {(["", "quente", "morno", "frio"] as const).map((t) => (

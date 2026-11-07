@@ -141,6 +141,13 @@ export function excluirLead(id: string) {
   supabase.from("leads").delete().eq("id", id).then(({ error }) => erroAoSalvar(error));
 }
 
+export function excluirVariosLeads(ids: string[]) {
+  if (!ids.length) return;
+  const fora = new Set(ids);
+  mudar({ leads: estado.leads.filter((l) => !fora.has(l.id)) });
+  supabase.from("leads").delete().in("id", ids).then(({ error }) => erroAoSalvar(error));
+}
+
 export function alterarLead(leadId: string, f: (l: Lead) => Lead) {
   const l = estado.leads.find((x) => x.id === leadId);
   if (l) salvarLead(f(l));

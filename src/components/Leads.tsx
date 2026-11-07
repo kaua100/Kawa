@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { avisar } from "@/lib/api";
 import { dataCurta, FASES, faseDoLead, hojeISO, oQueFazer, proximoEfetivo, qualificar, reais, sugerirPreco, sugestao } from "@/lib/acoes";
 import { SEGMENTOS, STATUS, segmentoPorId } from "@/lib/catalogo";
-import { salvarLead, useEstado } from "@/lib/store";
+import { excluirVariosLeads, salvarLead, useEstado } from "@/lib/store";
 import type { Lead, StatusLead } from "@/lib/types";
 import { Avatar, BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
 import FormLead, { leadVazio } from "./FormLead";
@@ -91,6 +91,20 @@ export default function Leads({ onAbrir, onBuscar, visaoInicial = "lista" }: Pro
               <input type="checkbox" checked={soSemSite} onChange={(e) => setSoSemSite(e.target.checked)} />
               Sem site
             </label>
+            {filtrados.length > 0 && (
+              <button
+                className="btn perigo"
+                onClick={() => {
+                  const n = filtrados.length;
+                  const qual = filtroSeg ? ` de ${segmentoPorId(filtroSeg as Lead["segmento"]).plural}` : "";
+                  if (!window.confirm(`Apagar ${n} ${n === 1 ? "lead" : "leads"}${qual}? Não dá para desfazer.`)) return;
+                  excluirVariosLeads(filtrados.map((l) => l.id));
+                  avisar(`${n} ${n === 1 ? "lead apagado" : "leads apagados"}`);
+                }}
+              >
+                Apagar {filtrados.length}
+              </button>
+            )}
           </div>
           {visao === "lista" ? <Lista leads={filtrados} onAbrir={onAbrir} /> : <Funil leads={filtrados} onAbrir={onAbrir} />}
         </>
