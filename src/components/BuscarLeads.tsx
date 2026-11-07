@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { avisar, postar, useIntegracoes } from "@/lib/api";
 import { linkSite, qualificar, type Temperatura } from "@/lib/acoes";
-import { NICHOS_EM_ALTA, POTENCIAL, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
+import { NICHOS_EM_ALTA, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
 import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
@@ -199,24 +199,22 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   return (
     <>
 
-      <section className="nichos" aria-label="Nichos">
-        <div className="nichos-lista">
-          {NICHOS_EM_ALTA.map((s) => (
-            <button key={s.id} className={`nicho ${segmento === s.id ? "ativo" : ""}`} onClick={() => escolherNicho(s.id)} aria-pressed={segmento === s.id}>
-              <span>{s.nome.charAt(0).toUpperCase() + s.nome.slice(1)}</span>
-              <span className="potencial" aria-label={`Potencial ${POTENCIAL[s.id]} de 3`}>
-                {[1, 2, 3].map((i) => <i key={i} className={i <= POTENCIAL[s.id] ? "on" : ""} />)}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <form
         className="card pad busca-form"
         onSubmit={(e) => { e.preventDefault(); if (temToken) buscar(); else setErro("Adicione um token da Apify."); }}
       >
         <div className="grade g3">
+          <label className="campo">
+            <span>Nicho</span>
+            <select value={segmento} onChange={(e) => escolherNicho(e.target.value as SegmentoId)}>
+              {[...NICHOS_EM_ALTA]
+                .sort((a, b) => a.nome.localeCompare(b.nome))
+                .map((s) => (
+                  <option key={s.id} value={s.id}>{s.nome.charAt(0).toUpperCase() + s.nome.slice(1)}</option>
+                ))}
+            </select>
+          </label>
           <SeletorLocal valor={lugar} onChange={mudarLugar} />
           <label className="campo">
             <span>Quantidade</span>
