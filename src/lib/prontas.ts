@@ -119,12 +119,14 @@ export const ETAPAS: Etapa[] = [
         categoria: "whatsapp",
         texto: (c) =>
           c.siteStatus === "nao-encontrado"
-            ? `${c.saudacao}, tudo bem? Estava procurando ${c.empresa}${c.cidade ? ` aqui em ${c.cidade}` : ""} e queria ver mais informações, mas não encontrei muita coisa na internet.
+            ? `${c.saudacao}, tudo bem? Estava pesquisando ${c.seg.plural}${c.cidade ? ` aqui em ${c.cidade}` : ""} e encontrei ${c.empresa} no Google.
 
-Vocês não têm site?`
-            : `${c.saudacao}, tudo bem? Estava procurando ${c.empresa}${c.cidade ? ` aqui em ${c.cidade}` : ""} e entrei no site de vocês, mas não consegui achar todas as informações que eu queria.
+Queria ver mais sobre vocês, mas não achei site. Vocês têm algum?`
+            : `${c.saudacao}, tudo bem? Estava pesquisando ${c.seg.plural}${c.cidade ? ` aqui em ${c.cidade}` : ""} e encontrei ${c.empresa}.
 
-Vocês ainda usam esse site?`,
+Entrei no site de vocês, mas não consegui ver tudo o que eu queria.
+
+O site ainda está ativo ou vocês atendem mais pelo WhatsApp?`,
       },
       {
         id: "rot-apresentacao",
