@@ -216,7 +216,7 @@ function App({ email }: { email: string }) {
         ) : rota.tela === "leads" || rota.tela === "funil" ? (
           <Leads key={rota.tela} onAbrir={abrirFicha} onBuscar={() => ir({ tela: "buscar" })} visaoInicial={rota.tela === "funil" ? "funil" : "lista"} />
         ) : rota.tela === "buscar" ? (
-          <BuscarLeads onImportados={() => ir({ tela: "hoje" })} />
+          <BuscarLeads onImportados={() => ir({ tela: "hoje" })} onAbrir={abrirFicha} />
         ) : rota.tela === "resultados" ? (
           <Resultados />
         ) : (

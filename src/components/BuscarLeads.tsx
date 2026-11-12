@@ -2,20 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { avisar, postar, useIntegracoes } from "@/lib/api";
-import { linkSite, qualificar, type Temperatura } from "@/lib/acoes";
+import { linkSite, linkZap, qualificar, registrarEnvio, textoDaMensagem, type Temperatura } from "@/lib/acoes";
 import { NICHOS_EM_ALTA, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
-import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salvarVariosLeads, useEstado } from "@/lib/store";
+import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salvarLead, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
 import type { Encontrado } from "@/app/api/apify/status/route";
 import { SeloTemperatura } from "./AcoesRapidas";
 import { localParaBusca, localParaLead, SeletorLocal, type Local } from "./SeletorLocal";
-import { IcInsta, IcPino, IcSite } from "./Icones";
+import { IcInsta, IcPino, IcSite, IcZap } from "./Icones";
 
 const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim().toLowerCase();
 
-export default function BuscarLeads({ onImportados }: { onImportados: () => void }) {
-  const { leads, apifyToken, apifyTokens } = useEstado();
+export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: () => void; onAbrir: (leadId: string) => void }) {
+  const { leads, apifyToken, apifyTokens, vendedor } = useEstado();
   const integ = useIntegracoes();
   const [segmento, setSegmento] = useState<SegmentoId>("odontologia");
   const [busca, setBusca] = useState(TERMO_MAPS.odontologia);
@@ -49,6 +49,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
   const [marcados, setMarcados] = useState<Set<number>>(new Set());
   const [soSemSite, setSoSemSite] = useState(false);
   const [temp, setTemp] = useState<"" | Temperatura>("");
+  const [aberto, setAberto] = useState<number | null>(null);
   const parar = useRef(false);
 
   useEffect(() => () => { parar.current = true; }, []);
@@ -121,13 +122,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
           const novos = r.encontrados ?? [];
           setSegBusca(detectarSegmento(busca) ?? segmento);
           setEncontrados(novos);
-          setMarcados(
-            new Set(
-              novos
-                .map((e, i) => (!jaCadastrados.has(chave(e.nome, e.telefone)) && qualificar({ ...e, segmento: detectarSegmento(e.categoria, e.nome) ?? segmento }).temperatura !== "frio" ? i : -1))
-                .filter((i) => i >= 0),
-            ),
-          );
+          setMarcados(new Set());
           break;
         }
         if (r.status === "falhou") throw new Error(r.erro);
@@ -140,37 +135,51 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
     }
   }
 
+  function paraLead(e: Encontrado, agora = new Date().toISOString()): Lead {
+    return {
+      id: novoId(),
+      empresa: e.nome,
+      responsavel: "",
+      segmento: detectarSegmento(e.categoria, e.nome) ?? segBusca,
+      cidade: e.cidade || localParaLead(lugar),
+      telefone: e.telefone,
+      site: e.site,
+      siteStatus: e.site ? "ok" : "nao-encontrado",
+      instagram: e.instagram,
+      seguidores: "",
+      infoPublica: [
+        e.nota !== null ? `Nota ${String(e.nota).replace(".", ",")} no Google${e.avaliacoes !== null ? ` com ${e.avaliacoes} avaliações` : ""}` : "",
+        e.categoria ? `categoria no Google: ${e.categoria}` : "",
+      ].filter(Boolean).join("; "),
+      endereco: e.endereco,
+      mapa: e.mapa,
+      nota: e.nota,
+      avaliacoes: e.avaliacoes,
+      origemLead: "apify",
+      servicoInteresse: servico,
+      status: "novo",
+      contatos: [],
+      criadoEm: agora,
+    };
+  }
+
+  /** Lead já salvo para esta empresa, ou salva só ela agora. */
+  function garantirLead(e: Encontrado): Lead {
+    const k = chave(e.nome, e.telefone);
+    const existente = leads.find((l) => chave(l.empresa, l.telefone) === k);
+    if (existente) return existente;
+    const novo = paraLead(e);
+    salvarLead(novo);
+    return novo;
+  }
+
   function importar() {
     if (!encontrados) return;
     const agora = new Date().toISOString();
     const novos: Lead[] = [...marcados]
       .map((i) => encontrados[i])
       .filter((e) => e && !jaCadastrados.has(chave(e.nome, e.telefone)))
-      .map((e) => ({
-        id: novoId(),
-        empresa: e.nome,
-        responsavel: "",
-        segmento: detectarSegmento(e.categoria, e.nome) ?? segBusca,
-        cidade: e.cidade || localParaLead(lugar),
-        telefone: e.telefone,
-        site: e.site,
-        siteStatus: e.site ? "ok" : "nao-encontrado",
-        instagram: e.instagram,
-        seguidores: "",
-        infoPublica: [
-          e.nota !== null ? `Nota ${String(e.nota).replace(".", ",")} no Google${e.avaliacoes !== null ? ` com ${e.avaliacoes} avaliações` : ""}` : "",
-          e.categoria ? `categoria no Google: ${e.categoria}` : "",
-        ].filter(Boolean).join("; "),
-        endereco: e.endereco,
-        mapa: e.mapa,
-        nota: e.nota,
-        avaliacoes: e.avaliacoes,
-        origemLead: "apify",
-        servicoInteresse: servico,
-        status: "novo",
-        contatos: [],
-        criadoEm: agora,
-      }));
+      .map((e) => paraLead(e, agora));
     if (!novos.length) return avisar("Nada novo para importar");
     salvarVariosLeads(novos);
     avisar(`${novos.length} ${novos.length === 1 ? "lead importado" : "leads importados"}. Eles já estão na lista de hoje.`);
@@ -327,7 +336,7 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
                     <label className="achado-check">
                       <input type="checkbox" disabled={ja} checked={marcados.has(i)} onChange={() => alternar(i)} aria-label={`Selecionar ${e.nome}`} />
                     </label>
-                    <div className="achado-info">
+                    <div className="achado-info" role="button" tabIndex={0} onClick={() => setAberto(aberto === i ? null : i)} onKeyDown={(ev) => ev.key === "Enter" && setAberto(aberto === i ? null : i)}>
                       <b>{e.nome}</b>
                       <small>{e.telefone || "Sem telefone"}</small>
                       <div className="achado-tags">
@@ -336,10 +345,35 @@ export default function BuscarLeads({ onImportados }: { onImportados: () => void
                         {seg !== segBusca && <span className="tag azul">{segmentoPorId(seg).nome}</span>}
                         {ja && <span className="tag azul">Já está na lista</span>}
                       </div>
+                      {aberto === i && (
+                        <dl className="achado-detalhes">
+                          {e.categoria && <><dt>Categoria</dt><dd>{e.categoria}</dd></>}
+                          {e.endereco && <><dt>Endereço</dt><dd>{e.endereco}</dd></>}
+                          {e.site && <><dt>Site</dt><dd>{e.site}</dd></>}
+                          {e.instagram && <><dt>Instagram</dt><dd>{e.instagram}</dd></>}
+                        </dl>
+                      )}
                     </div>
                     <div className="achado-lado">
                       <SeloTemperatura dados={{ ...e, segmento: seg }} />
                       <div className="achado-links">
+                        {e.telefone && (
+                          <a
+                            className="btn zap icone"
+                            href={linkZap(paraLead(e), textoDaMensagem(paraLead(e), "rot-abordagem", vendedor))}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Chamar no WhatsApp com a primeira mensagem"
+                            onClick={() => {
+                              const l = garantirLead(e);
+                              registrarEnvio(l, "rot-abordagem");
+                              avisar(`${e.nome} foi para a sua lista.`);
+                            }}
+                          >
+                            <IcZap />
+                          </a>
+                        )}
+                        <button type="button" className="btn peq" onClick={() => onAbrir(garantirLead(e).id)}>Abrir</button>
                         {e.mapa && <a className="btn icone" href={e.mapa} target="_blank" rel="noopener noreferrer" title="Abrir no Maps"><IcPino /></a>}
                         {e.site && <a className="btn icone" href={linkSite(e.site)} target="_blank" rel="noopener noreferrer" title="Abrir site"><IcSite /></a>}
                         {e.instagram && <a className="btn icone" href={`https://instagram.com/${e.instagram.replace("@", "")}`} target="_blank" rel="noopener noreferrer" title="Abrir Instagram"><IcInsta /></a>}

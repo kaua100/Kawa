@@ -26,7 +26,15 @@ export type SegmentoId =
   | "vidracaria"
   | "autopecas"
   | "loja-carros"
-  | "insulfilm";
+  | "insulfilm"
+  | "moveis-planejados"
+  | "marmoraria"
+  | "assistencia-celular"
+  | "pilates"
+  | "tatuagem"
+  | "autoescola"
+  | "dedetizadora"
+  | "veterinaria";
 
 export type CategoriaId =
   | "primeira-ligacao"

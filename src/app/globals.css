@@ -385,7 +385,13 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
 .achado-motivos { margin: 7px 0 0; font-size: 13px; color: var(--suave); }
 .achado-lado { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .achado-links { display: flex; gap: 5px; }
-.achado-links .btn.icone { width: 34px; height: 34px; }
+.achado-links { align-items: center; flex-wrap: nowrap; justify-content: flex-end; }
+.achado-links .btn.icone, .achado-links .btn.zap.icone { width: 40px !important; height: 40px !important; min-height: 0; box-shadow: none; }
+.achado-links .btn.peq { height: 40px; }
+.achado-info { cursor: pointer; }
+.achado-detalhes { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 10px 0 0; font-size: 14px; }
+.achado-detalhes dt { color: var(--suave); }
+.achado-detalhes dd { margin: 0; overflow-wrap: anywhere; }
 
 /* ---------- Resultados ---------- */
 .faturado { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1px; background: var(--linha); border-radius: var(--raio); overflow: hidden; border: 1px solid var(--linha); margin-bottom: 16px; }
@@ -564,7 +570,7 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
   .dados dd { margin-bottom: 8px; }
   .faturado { grid-template-columns: 1fr; }
   .achado { grid-template-columns: 26px minmax(0, 1fr); }
-  .achado-lado { grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; }
+  .achado-lado { grid-column: 2; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
   .login-fundo { grid-template-columns: 1fr; }
   .login-lado { padding: 32px 20px 28px; gap: 18px; }
   .login-pontos { display: none; }
