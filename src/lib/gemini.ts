@@ -10,7 +10,7 @@ export const MODELO_PRINCIPAL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 export const MODELO_RESERVA = process.env.GEMINI_MODEL_RESERVA || "gemini-3.5-flash-lite";
 
 export class ErroGemini extends Error {
-  constructor(msg: string, public status = 502, public codigo: "limite-dia" | "limite-minuto" | "config" | "erro" = "erro", public tentarEm = 0) {
+  constructor(msg: string, public status = 502, public codigo: "limite-dia" | "limite-minuto" | "sobrecarga" | "config" | "erro" = "erro", public tentarEm = 0) {
     super(msg);
   }
 }
@@ -47,6 +47,9 @@ async function chamar(modelo: string, sistema: string, texto: string): Promise<s
     if (/PerDay/i.test(quota)) throw new ErroGemini("Limite gratuito diário do Gemini atingido para este modelo.", 429, "limite-dia");
     throw new ErroGemini(`Limite gratuito por minuto do Gemini atingido. Tente de novo${atraso ? ` em ${Math.ceil(atraso)} segundos` : " em 1 minuto"}.`, 429, "limite-minuto", atraso);
   }
+  if (r.status === 503 || r.status === 500 || b.error?.status === "UNAVAILABLE") {
+    throw new ErroGemini("O Gemini está sobrecarregado agora (alta demanda no Google). Tente de novo em alguns minutos.", 503, "sobrecarga");
+  }
   if (!r.ok) {
     const msg = b.error?.message || `erro ${r.status}`;
     throw new ErroGemini(r.status === 400 && /API key/i.test(msg) ? "A chave do Gemini é inválida." : `Gemini: ${msg}`, r.status === 404 ? 502 : r.status >= 500 ? 502 : 400, r.status === 400 && /API key/i.test(msg) ? "config" : "erro");
@@ -59,22 +62,43 @@ async function chamar(modelo: string, sistema: string, texto: string): Promise<s
   return saida;
 }
 
-/** Usa o modelo principal; se a cota diária dele acabar, tenta o modelo leve e avisa. */
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Usa o modelo principal. Se ele estiver sobrecarregado, tenta de novo uma vez;
+ * se continuar (ou se a cota diária dele acabar), usa o modelo reserva e avisa.
+ */
 export async function gerarTexto(sistema: string, texto: string): Promise<{ texto: string; modelo: string; aviso: string }> {
+  let motivo = "";
   try {
     return { texto: await chamar(MODELO_PRINCIPAL, sistema, texto), modelo: MODELO_PRINCIPAL, aviso: "" };
   } catch (e) {
-    if (e instanceof ErroGemini && e.codigo === "limite-dia" && MODELO_RESERVA !== MODELO_PRINCIPAL) {
+    if (!(e instanceof ErroGemini)) throw e;
+    if (e.codigo === "sobrecarga") {
+      await espera(4000);
       try {
-        const t = await chamar(MODELO_RESERVA, sistema, texto);
-        return { texto: t, modelo: MODELO_RESERVA, aviso: `A cota gratuita diária do ${MODELO_PRINCIPAL} acabou. Usei o ${MODELO_RESERVA}, mais leve. A cota volta à meia-noite do Pacífico (5h em Brasília).` };
+        return { texto: await chamar(MODELO_PRINCIPAL, sistema, texto), modelo: MODELO_PRINCIPAL, aviso: "" };
       } catch (e2) {
-        if (e2 instanceof ErroGemini && e2.codigo === "limite-dia") {
-          throw new ErroGemini("As cotas gratuitas diárias do Gemini acabaram. Elas voltam à meia-noite do Pacífico (5h em Brasília).", 429, "limite-dia");
-        }
-        throw e2;
+        if (!(e2 instanceof ErroGemini) || (e2.codigo !== "sobrecarga" && e2.codigo !== "limite-dia")) throw e2;
+        motivo = e2.codigo === "sobrecarga" ? `O ${MODELO_PRINCIPAL} está sobrecarregado no Google agora.` : `A cota gratuita diária do ${MODELO_PRINCIPAL} acabou.`;
       }
+    } else if (e.codigo === "limite-dia") {
+      motivo = `A cota gratuita diária do ${MODELO_PRINCIPAL} acabou. Ela volta à meia-noite do Pacífico (5h em Brasília).`;
+    } else {
+      throw e;
     }
-    throw e;
+  }
+  if (MODELO_RESERVA === MODELO_PRINCIPAL) throw new ErroGemini(motivo || "O Gemini não respondeu.", 503, "sobrecarga");
+  try {
+    const t = await chamar(MODELO_RESERVA, sistema, texto);
+    return { texto: t, modelo: MODELO_RESERVA, aviso: `${motivo} Usei o ${MODELO_RESERVA}, mais leve. Se quiser, gere de novo mais tarde com o modelo principal.` };
+  } catch (e3) {
+    if (e3 instanceof ErroGemini && e3.codigo === "limite-dia") {
+      throw new ErroGemini("As cotas gratuitas diárias do Gemini acabaram. Elas voltam à meia-noite do Pacífico (5h em Brasília).", 429, "limite-dia");
+    }
+    if (e3 instanceof ErroGemini && e3.codigo === "sobrecarga") {
+      throw new ErroGemini("Os dois modelos do Gemini estão sobrecarregados no Google agora. Isso costuma passar em poucos minutos. Tente de novo daqui a pouco.", 503, "sobrecarga");
+    }
+    throw e3;
   }
 }
