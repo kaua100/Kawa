@@ -104,8 +104,13 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, o
             </button>
             {onCriarSite && (
               <button className="btn prim" onClick={() => onCriarSite(lead.id)}>
-                <IcSites /><span>Criar site para esta empresa</span>
+                <IcSites /><span>{lead.linkDemo ? "Editar site" : "Criar site para esta empresa"}</span>
               </button>
+            )}
+            {lead.linkDemo && (
+              <a className="btn" href={lead.linkDemo} target="_blank" rel="noopener noreferrer">
+                <IcSite /><span>Ver site no ar</span>
+              </a>
             )}
           </div>
 

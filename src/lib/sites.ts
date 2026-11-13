@@ -54,6 +54,8 @@ export interface ProjetoSite {
   chat: MsgChat[];
   html: string;
   atualizado_em: string;
+  publicado_url?: string | null;
+  publicado_em?: string | null;
 }
 
 export const ESTILOS: { nome: string; cores: [string, string, string]; fonte: string }[] = [
@@ -97,7 +99,7 @@ export function dadosDoLead(l: Lead): DadosSite {
   };
 }
 
-const COLUNAS = "id,lead_id,nome,dados,estilo,midias,chat,html,atualizado_em";
+const COLUNAS = "id,lead_id,nome,dados,estilo,midias,chat,html,atualizado_em,publicado_url,publicado_em";
 
 export async function listarProjetos(): Promise<ProjetoSite[]> {
   const { data, error } = await supabase.from("site_projetos").select(COLUNAS).order("atualizado_em", { ascending: false }).limit(200);

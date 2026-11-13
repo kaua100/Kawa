@@ -17,7 +17,7 @@ import {
   type MidiaSite,
   type ProjetoSite,
 } from "@/lib/sites";
-import { useEstado } from "@/lib/store";
+import { alterarLead, useEstado } from "@/lib/store";
 import { IcBaixar, IcVoltar } from "./Icones";
 
 type Aba = "dados" | "estilo" | "midias" | "ia";
@@ -74,6 +74,7 @@ export default function CriarSites({ leadInicial, onAbrirLead }: { leadInicial?:
         key={aberto.id}
         inicial={aberto}
         temGemini={integ.gemini || !integ.carregado}
+        temVercel={integ.vercel || !integ.carregado}
         onFechar={(p) => {
           setProjetos((x) => (x ?? []).map((y) => (y.id === p.id ? p : y)).sort((a, b) => (a.atualizado_em < b.atualizado_em ? 1 : -1)));
           setAberto(null);
@@ -120,7 +121,9 @@ export default function CriarSites({ leadInicial, onAbrirLead }: { leadInicial?:
               <div className="site-card-pe">
                 <div>
                   <b>{p.nome}</b>
-                  <small>{new Date(p.atualizado_em).toLocaleDateString("pt-BR")}</small>
+                  <small>
+                    {p.publicado_url ? <a href={p.publicado_url} target="_blank" rel="noopener noreferrer">No ar: {p.publicado_url.replace("https://", "")}</a> : `Editado em ${new Date(p.atualizado_em).toLocaleDateString("pt-BR")}`}
+                  </small>
                 </div>
                 <button className="btn peq" onClick={() => setAberto(p)}>Editar</button>
                 <button
@@ -158,7 +161,7 @@ function AvisoGemini() {
 
 /* ------------------------------------------------------------------ */
 
-function Editor({ inicial, temGemini, onFechar, onAbrirLead }: { inicial: ProjetoSite; temGemini: boolean; onFechar: (p: ProjetoSite) => void; onAbrirLead: (id: string) => void }) {
+function Editor({ inicial, temGemini, temVercel, onFechar, onAbrirLead }: { inicial: ProjetoSite; temGemini: boolean; temVercel: boolean; onFechar: (p: ProjetoSite) => void; onAbrirLead: (id: string) => void }) {
   const [p, setP] = useState<ProjetoSite>(inicial);
   const [aba, setAba] = useState<Aba>(inicial.html ? "ia" : "dados");
   const [tela, setTela] = useState<"painel" | "previa">("painel");
@@ -218,6 +221,22 @@ function Editor({ inicial, temGemini, onFechar, onAbrirLead }: { inicial: Projet
     }
   }
 
+  async function publicar() {
+    setAviso(null);
+    setGerando("publicar");
+    try {
+      if (!salvo) await salvarProjeto(p);
+      const r = await postar<{ url: string; publicadoEm: string }>("/api/sites/publicar", { projetoId: p.id });
+      setP((x) => ({ ...x, publicado_url: r.url, publicado_em: r.publicadoEm }));
+      if (p.lead_id) alterarLead(p.lead_id, (l) => ({ ...l, linkDemo: r.url }));
+      avisar(p.lead_id ? "Site publicado e salvo na ficha do lead" : "Site publicado");
+    } catch (e) {
+      setAviso({ tipo: "erro", texto: (e as Error).message });
+    } finally {
+      setGerando("");
+    }
+  }
+
   async function exportar() {
     setGerando("zip");
     try {
@@ -242,10 +261,23 @@ function Editor({ inicial, temGemini, onFechar, onAbrirLead }: { inicial: Projet
           <button className="btn prim" disabled={!!gerando || !temGemini || !p.dados.empresa.trim()} onClick={() => pedirIA("gerar")}>
             {gerando === "gerar" ? "Gerando..." : p.html ? "Gerar de novo" : "Gerar site"}
           </button>
-          <button className="btn" disabled={!p.html || !!gerando} onClick={exportar}><IcBaixar /><span>{gerando === "zip" ? "Montando..." : "Baixar ZIP"}</span></button>
+          <button className="btn publicar" disabled={!p.html || !!gerando || !temVercel} onClick={publicar}>
+            {gerando === "publicar" ? "Publicando..." : p.publicado_url ? "Publicar de novo" : "Publicar"}
+          </button>
+          <button className="btn" disabled={!p.html || !!gerando} onClick={exportar} title="Baixar os arquivos do site"><IcBaixar /><span>{gerando === "zip" ? "Montando..." : "ZIP"}</span></button>
         </div>
       </header>
 
+      {p.publicado_url && (
+        <div className="publicado">
+          <span className="publicado-selo">No ar</span>
+          <a href={p.publicado_url} target="_blank" rel="noopener noreferrer">{p.publicado_url.replace("https://", "")}</a>
+          <button className="btn peq" onClick={() => navigator.clipboard?.writeText(p.publicado_url!).then(() => avisar("Link copiado"))}>Copiar</button>
+          {p.publicado_em && <small>Publicado em {new Date(p.publicado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}. Mudanças novas só aparecem depois de publicar de novo.</small>}
+        </div>
+      )}
+      {gerando === "publicar" && <p className="editor-aviso info">Enviando para a Vercel. Leva de 20 segundos a 1 minuto.</p>}
+      {!temVercel && <div className="aviso-zap"><span>Para publicar, falta o token da Vercel no servidor (<code>VERCEL_TOKEN</code>).</span></div>}
       {aviso && <p className={aviso.tipo === "erro" ? "erro editor-aviso" : "editor-aviso info"}>{aviso.texto}</p>}
       {!temGemini && <AvisoGemini />}
 

@@ -1029,3 +1029,10 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
 .midias-botoes .btn { flex: 1 1 160px; white-space: normal; }
 .site-card-pe { flex-wrap: wrap; }
 .site-card-pe > div { flex: 1 1 100%; }
+.btn.publicar { background: var(--zap); border-color: var(--zap); color: #fff; font-weight: 700; }
+.btn.publicar:hover:not(:disabled) { background: var(--zap-escuro); border-color: var(--zap-escuro); }
+.publicado { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: color-mix(in srgb, var(--zap) 10%, var(--sup)); border: 1px solid color-mix(in srgb, var(--zap) 35%, transparent); border-radius: var(--raio-p); padding: 10px 14px; }
+.publicado a { font-weight: 700; color: var(--zap-escuro); word-break: break-all; }
+.publicado small { flex: 1 1 100%; color: var(--suave); font-size: 13px; }
+.publicado-selo { background: var(--zap); color: #fff; font-size: 12px; font-weight: 700; border-radius: 99px; padding: 2px 10px; }
+.site-card-pe small a { color: var(--zap-escuro); font-weight: 600; word-break: break-all; }
