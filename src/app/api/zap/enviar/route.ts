@@ -1,9 +1,9 @@
 import { usuarioDaRequisicao } from "@/lib/autenticar";
-import { numeroZap, respostaErro, supabaseDoUsuario, tokenDaRequisicao, zapi } from "@/lib/zapi";
+import { canalDoUsuario, numeroZap, omni, respostaErro, supabaseDoUsuario, tokenDaRequisicao } from "@/lib/omni";
 
 export const runtime = "nodejs";
 
-/** Envia texto pelo número conectado e grava no histórico da conversa. */
+/** Envia texto pelo canal WhatsApp Web da Omni e grava no histórico da conversa. */
 export async function POST(req: Request) {
   const userId = await usuarioDaRequisicao(req);
   if (!userId) return Response.json({ erro: "Faça login." }, { status: 401 });
@@ -14,23 +14,24 @@ export async function POST(req: Request) {
   if (!message) return Response.json({ erro: "Escreva a mensagem." }, { status: 400 });
   if (message.length > 4000) return Response.json({ erro: "Mensagem muito longa." }, { status: 400 });
 
+  const token = tokenDaRequisicao(req);
   try {
-    const st = await zapi<{ connected?: boolean }>("status");
-    if (!st.connected) return Response.json({ erro: "O WhatsApp está desconectado. Conecte de novo em Configurações.", codigo: "desconectado" }, { status: 409 });
+    const canal = await canalDoUsuario(token, userId);
+    if (!canal) return Response.json({ erro: "Conecte o WhatsApp em Configurações.", codigo: "desconectado" }, { status: 409 });
 
-    const r = await zapi<{ messageId?: string; zaapId?: string; id?: string }>("send-text", "POST", { phone, message });
-    const messageId = r.messageId || r.id || "";
-    if (!messageId) return Response.json({ erro: "A Z-API não confirmou o envio." }, { status: 502 });
+    const r = await omni<{ messageId?: string }>(`/v1/channels/${encodeURIComponent(canal)}/messages`, "POST", {
+      recipient: { identifier: phone },
+      content: { type: "TEXT", body: { message } },
+    });
+    if (!r.messageId) return Response.json({ erro: "A Omni não confirmou o envio." }, { status: 502 });
 
-    const sb = supabaseDoUsuario(tokenDaRequisicao(req));
-    // Se o webhook já registrou essa mensagem, só completa o lead_id.
-    const { error } = await sb
+    const { error } = await supabaseDoUsuario(token)
       .from("zap_mensagens")
       .upsert(
-        { user_id: userId, telefone: phone, de_mim: true, texto: message, tipo: "texto", message_id: messageId, status: "SENT", lead_id: leadId ?? null },
-        { onConflict: "user_id,message_id", ignoreDuplicates: false },
+        { user_id: userId, telefone: phone, de_mim: true, texto: message, tipo: "texto", message_id: r.messageId, status: "SENT", lead_id: leadId ?? null },
+        { onConflict: "user_id,message_id" },
       );
-    return Response.json({ ok: true, messageId, salvo: !error });
+    return Response.json({ ok: true, messageId: r.messageId, salvo: !error });
   } catch (e) {
     return respostaErro(e);
   }

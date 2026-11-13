@@ -916,3 +916,13 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
 }
 .conversas-lista ul { grid-template-columns: minmax(0, 1fr); }
 .conversa-item > :first-child { flex: 0 0 auto; }
+.zap-canal { margin: 0 0 16px; padding: 12px 14px; border: 1px dashed var(--linha-forte); border-radius: var(--raio-p); }
+.zap-canal p { margin: 0 0 8px; font-size: 15px; }
+.zap-copiar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.zap-copiar code { font-size: 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 8px; padding: 6px 10px; word-break: break-all; }
+.zap-passos { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 15.5px; }
+.zap-ok { margin: 14px 0 0; color: var(--zap-escuro); font-weight: 600; }
+.zap-desconectar { margin-top: 16px; font-size: 15px; color: var(--suave); }
+.zap-desconectar summary { cursor: pointer; font-weight: 600; }
+.zap-desconectar p { margin: 8px 0 0; line-height: 1.45; }
+.conversa-ia { height: 46px; min-width: 46px; border-radius: 99px; font-weight: 700; flex: 0 0 auto; }

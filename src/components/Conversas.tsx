@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { avisar } from "@/lib/api";
+import { avisar, postar, useIntegracoes } from "@/lib/api";
+import { reais, sugerirPreco } from "@/lib/acoes";
+import { segmentoPorId, STATUS } from "@/lib/catalogo";
 import { marcarLida, montarConversas, useConversas, type Conversa, type MsgZap } from "@/lib/conversas";
 import { adicionarContato, useEstado } from "@/lib/store";
 import { telefoneWhatsApp } from "@/lib/prontas";
@@ -89,6 +91,9 @@ export default function Conversas({ abrirChave, onAbrirLead, onConectar }: { abr
 function Conversa({ c, msgs, onVoltar, onAbrirLead, podeEnviar }: { c: Conversa; msgs: MsgZap[]; onVoltar: () => void; onAbrirLead: (id: string) => void; podeEnviar: boolean }) {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [pensando, setPensando] = useState(false);
+  const integ = useIntegracoes();
+  const { vendedor } = useEstado();
   const fim = useRef<HTMLDivElement>(null);
   const lista = useMemo(
     () => msgs.filter((m) => m.telefone === c.telefone || (m.telefone.slice(-8) === c.telefone.slice(-8) && m.telefone.slice(2, 4) === c.telefone.slice(2, 4))).sort((a, b) => (a.momento < b.momento ? -1 : 1)),
@@ -100,6 +105,26 @@ function Conversa({ c, msgs, onVoltar, onAbrirLead, podeEnviar }: { c: Conversa;
     const ultima = lista.at(-1);
     if (ultima) marcarLida(c.chave, ultima.momento);
   }, [lista, c.chave]);
+
+  async function sugerir() {
+    setPensando(true);
+    try {
+      const l = c.lead;
+      const r = await postar<{ texto: string }>("/api/zap/sugerir", {
+        historico: lista.filter((m) => m.texto).map((m) => ({ de_mim: m.de_mim, texto: m.texto })),
+        empresa: l?.empresa ?? c.nome,
+        nicho: l ? segmentoPorId(l.segmento).nome : undefined,
+        etapa: l ? STATUS.find((s) => s.id === l.status)?.nome : undefined,
+        preco: l ? reais(l.valor ?? sugerirPreco(l).sugerido) : undefined,
+        vendedor,
+      });
+      setTexto(r.texto);
+    } catch (e) {
+      avisar((e as Error).message);
+    } finally {
+      setPensando(false);
+    }
+  }
 
   async function enviar() {
     const t = texto.trim();
@@ -158,6 +183,11 @@ function Conversa({ c, msgs, onVoltar, onAbrirLead, podeEnviar }: { c: Conversa;
             }
           }}
         />
+        {integ.ia && (
+          <button type="button" className="btn peq conversa-ia" onClick={sugerir} disabled={pensando || !lista.length} title="Sugerir resposta com IA">
+            {pensando ? "..." : "IA"}
+          </button>
+        )}
         <button className="btn zap icone" type="submit" disabled={!podeEnviar || enviando || !texto.trim()} aria-label="Enviar"><IcEnviar /></button>
       </form>
     </section>

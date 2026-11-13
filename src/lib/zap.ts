@@ -5,20 +5,20 @@ import { postar } from "./api";
 import { telefoneWhatsApp } from "./prontas";
 import { supabase } from "./supabase";
 
-/** Situação do WhatsApp conectado, sempre vinda da Z-API (nada simulado). */
+/** Situação do WhatsApp conectado, sempre vinda da Omni (nada simulado). */
 export interface EstadoZap {
   carregado: boolean;
-  configurado: boolean;
+  configurado: boolean; // Secret Key presente no servidor
+  canal: string; // ID do canal WhatsApp Web
+  canalNaVariavel: boolean; // OMNI_CHANNEL_ID já cadastrado na Vercel
   conectado: boolean;
-  celularOnline: boolean | null;
   numero: string;
-  nome: string;
-  detalhe: string;
-  qr: string;
+  pagamento: string; // PAID, TRIAL... (só com acesso à consulta do canal)
+  publicKey: string;
   erro: string;
 }
 
-let estado: EstadoZap = { carregado: false, configurado: false, conectado: false, celularOnline: null, numero: "", nome: "", detalhe: "", qr: "", erro: "" };
+let estado: EstadoZap = { carregado: false, configurado: false, canal: "", canalNaVariavel: false, conectado: false, numero: "", pagamento: "", publicKey: "", erro: "" };
 const ouvintes = new Set<(e: EstadoZap) => void>();
 let pedindo: Promise<EstadoZap> | null = null;
 let realtimeLigado = false;
@@ -28,11 +28,21 @@ function mudar(p: Partial<EstadoZap>) {
   ouvintes.forEach((f) => f(estado));
 }
 
-export async function atualizarZap(comQr = false): Promise<EstadoZap> {
-  if (pedindo && !comQr) return pedindo;
-  const p = postar<Partial<EstadoZap>>("/api/zap/status", { qr: comQr })
+export async function atualizarZap(): Promise<EstadoZap> {
+  if (pedindo) return pedindo;
+  const p = postar<Partial<EstadoZap>>("/api/zap/status", {})
     .then((d) => {
-      mudar({ carregado: true, configurado: !!d.configurado, conectado: !!d.conectado, celularOnline: d.celularOnline ?? null, numero: d.numero ?? "", nome: d.nome ?? "", detalhe: d.detalhe ?? "", qr: d.qr ?? "", erro: "" });
+      mudar({
+        carregado: true,
+        configurado: !!d.configurado,
+        canal: d.canal ?? "",
+        canalNaVariavel: !!d.canalNaVariavel,
+        conectado: !!d.conectado,
+        numero: d.numero ?? "",
+        pagamento: d.pagamento ?? "",
+        publicKey: d.publicKey ?? "",
+        erro: "",
+      });
       return estado;
     })
     .catch((e: Error) => {
@@ -40,9 +50,9 @@ export async function atualizarZap(comQr = false): Promise<EstadoZap> {
       return estado;
     })
     .finally(() => {
-      if (pedindo === p) pedindo = null;
+      pedindo = null;
     });
-  if (!comQr) pedindo = p;
+  pedindo = p;
   return p;
 }
 
