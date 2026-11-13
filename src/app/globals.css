@@ -817,3 +817,16 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--tinta-3)
 @media (display-mode: standalone) {
   .barra-mobile { padding-top: calc(10px + env(safe-area-inset-top)); }
 }
+
+/* Pesquisas salvas */
+.pesquisas { margin: 18px 0 4px; }
+.pesquisas h3 { margin: 0 0 8px; font-size: 15px; color: var(--suave); font-weight: 600; }
+.pesquisas-lista { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.pesquisa { display: flex; align-items: stretch; flex: 0 0 auto; background: var(--sup); border: 1px solid var(--linha); border-radius: var(--raio-p); }
+.pesquisa.ativa { border-color: var(--azul); box-shadow: 0 0 0 1px var(--azul) inset; }
+.pesquisa > button:first-child { background: none; border: 0; padding: 9px 4px 9px 13px; text-align: left; cursor: pointer; color: var(--texto); display: flex; flex-direction: column; gap: 2px; min-height: 48px; justify-content: center; }
+.pesquisa b { font-size: 15px; }
+.pesquisa small { font-size: 13px; color: var(--suave); white-space: nowrap; }
+.pesquisa-x { background: none; border: 0; color: var(--suave); font-size: 20px; padding: 0 12px; cursor: pointer; }
+.pesquisa-x:hover { color: var(--perigo); }
+.preco-parc { color: var(--suave); font-size: 14px; }

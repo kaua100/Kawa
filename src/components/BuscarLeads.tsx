@@ -14,6 +14,47 @@ import { IcInsta, IcPino, IcSite, IcZap } from "./Icones";
 
 const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim().toLowerCase();
 
+/** Pesquisas guardadas no aparelho, para não sumirem ao sair da tela. */
+interface PesquisaSalva {
+  id: string;
+  quando: string;
+  segBusca: SegmentoId;
+  local: string;
+  encontrados: Encontrado[];
+}
+interface Pendente {
+  runId: string;
+  token: string;
+  segBusca: SegmentoId;
+  local: string;
+  inicio: number;
+}
+const K_PESQUISAS = "mindstrat:pesquisas";
+const K_PENDENTE = "mindstrat:pesquisa-pendente";
+function ler<T>(k: string, padrao: T): T {
+  try {
+    const v = localStorage.getItem(k);
+    return v ? (JSON.parse(v) as T) : padrao;
+  } catch {
+    return padrao;
+  }
+}
+function gravar(k: string, v: unknown) {
+  try {
+    if (v === null) localStorage.removeItem(k);
+    else localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* sem armazenamento */
+  }
+}
+const quandoCurto = (iso: string) => {
+  const d = new Date(iso);
+  const hoje = new Date().toDateString() === d.toDateString();
+  return hoje
+    ? `hoje ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+    : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+};
+
 export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: () => void; onAbrir: (leadId: string) => void }) {
   const { leads, apifyToken, apifyTokens, vendedor } = useEstado();
   const integ = useIntegracoes();
@@ -50,9 +91,43 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
   const [soSemSite, setSoSemSite] = useState(false);
   const [temp, setTemp] = useState<"" | Temperatura>("");
   const [aberto, setAberto] = useState<number | null>(null);
+  const [pesquisas, setPesquisas] = useState<PesquisaSalva[]>([]);
+  const [atual, setAtual] = useState<string | null>(null);
   const parar = useRef(false);
 
-  useEffect(() => () => { parar.current = true; }, []);
+  // Ao abrir a tela: recupera as pesquisas salvas e continua uma busca que ainda estava rodando.
+  useEffect(() => {
+    parar.current = false;
+    const salvas = ler<PesquisaSalva[]>(K_PESQUISAS, []);
+    setPesquisas(salvas);
+    const pend = ler<Pendente | null>(K_PENDENTE, null);
+    if (pend && Date.now() - pend.inicio < 30 * 60 * 1000) {
+      setRodando(true);
+      acompanhar(pend);
+    } else {
+      if (pend) gravar(K_PENDENTE, null);
+      if (salvas[0]) abrirPesquisa(salvas[0]);
+    }
+    return () => { parar.current = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function abrirPesquisa(p: PesquisaSalva) {
+    setAtual(p.id);
+    setSegBusca(p.segBusca);
+    setEncontrados(p.encontrados);
+    setMarcados(new Set());
+    setTemp("");
+    setSoSemSite(false);
+    setAberto(null);
+  }
+
+  function apagarPesquisa(id: string) {
+    const resto = pesquisas.filter((p) => p.id !== id);
+    setPesquisas(resto);
+    gravar(K_PESQUISAS, resto);
+    if (atual === id) limpar();
+  }
 
   const jaCadastrados = useMemo(() => new Set(leads.map((l) => chave(l.empresa, l.telefone))), [leads]);
   const temToken = Boolean(apifyTokens.length || integ.apify);
@@ -73,10 +148,10 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
   function escolherNicho(s: SegmentoId) {
     setSegmento(s);
     setBusca(TERMO_MAPS[s]);
-    if (!rodando) limpar();
   }
 
   function limpar() {
+    setAtual(null);
     setEncontrados(null);
     setMarcados(new Set());
     setTemp("");
@@ -85,6 +160,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
 
   async function buscar() {
     setErro("");
+    setAtual(null);
     setEncontrados(null);
     setMarcados(new Set());
     setRodando(true);
@@ -115,23 +191,48 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
         }
       }
       if (usado && usado !== apifyToken) definirApifyToken(usado);
+      const pend: Pendente = { runId, token: usado, segBusca: detectarSegmento(busca) ?? segmento, local, inicio };
+      gravar(K_PENDENTE, pend);
+      clearInterval(relogio);
+      await acompanhar(pend);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro na busca");
+      clearInterval(relogio);
+      setRodando(false);
+    }
+  }
+
+  /** Espera a Apify terminar e salva o resultado. Funciona também depois de sair e voltar para a tela. */
+  async function acompanhar(pend: Pendente) {
+    const relogio = setInterval(() => setSegundos(Math.round((Date.now() - pend.inicio) / 1000)), 1000);
+    try {
       while (!parar.current) {
         await new Promise((r) => setTimeout(r, 5000));
-        const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", { runId, token: usado });
+        if (parar.current) return;
+        const r = await postar<{ status: string; erro?: string; encontrados?: Encontrado[] }>("/api/apify/status", { runId: pend.runId, token: pend.token });
         if (r.status === "pronto") {
-          const novos = r.encontrados ?? [];
-          setSegBusca(detectarSegmento(busca) ?? segmento);
-          setEncontrados(novos);
-          setMarcados(new Set());
+          const nova: PesquisaSalva = {
+            id: pend.runId,
+            quando: new Date().toISOString(),
+            segBusca: pend.segBusca,
+            local: pend.local.replace(/, Brasil$/, ""),
+            encontrados: r.encontrados ?? [],
+          };
+          const lista = [nova, ...ler<PesquisaSalva[]>(K_PESQUISAS, []).filter((p) => p.id !== nova.id)].slice(0, 10);
+          gravar(K_PESQUISAS, lista);
+          gravar(K_PENDENTE, null);
+          setPesquisas(lista);
+          abrirPesquisa(nova);
           break;
         }
         if (r.status === "falhou") throw new Error(r.erro);
       }
     } catch (e) {
+      gravar(K_PENDENTE, null);
       setErro(e instanceof Error ? e.message : "Erro na busca");
     } finally {
       clearInterval(relogio);
-      setRodando(false);
+      if (!parar.current) setRodando(false);
     }
   }
 
@@ -296,6 +397,23 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
           )}
         </div>
       </form>
+
+      {pesquisas.length > 0 && (
+        <section className="pesquisas" aria-label="Pesquisas salvas">
+          <h3>Pesquisas salvas</h3>
+          <div className="pesquisas-lista">
+            {pesquisas.map((p) => (
+              <div key={p.id} className={`pesquisa ${atual === p.id ? "ativa" : ""}`}>
+                <button type="button" onClick={() => abrirPesquisa(p)}>
+                  <b>{segmentoPorId(p.segBusca).plural.charAt(0).toUpperCase() + segmentoPorId(p.segBusca).plural.slice(1)}</b>
+                  <small>{p.local.split(",").slice(-2).join(",").trim()} · {p.encontrados.length} · {quandoCurto(p.quando)}</small>
+                </button>
+                <button type="button" className="pesquisa-x" onClick={() => apagarPesquisa(p.id)} aria-label="Apagar pesquisa">×</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {encontrados && (
         <section className="card resultados-card">

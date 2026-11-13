@@ -338,14 +338,16 @@ export const qualificarLead = (l: Lead) => qualificar(l);
 
 /* ---------- Sugestão de preço ---------- */
 
-/** Faixa de preço por serviço (R$). Tudo entre R$ 700 e R$ 3.000. */
+/** Faixa de preço por serviço (R$). Tudo entre R$ 700 e R$ 2.500. */
 export const PRECO_BASE: Record<Lead["servicoInteresse"], { min: number; max: number; mensal?: boolean; nota: string }> = {
-  "landing-page": { min: 700, max: 1500, nota: "landing page" },
-  site: { min: 900, max: 2500, nota: "site institucional" },
-  "loja-virtual": { min: 1500, max: 3000, nota: "loja virtual" },
-  sistema: { min: 1200, max: 3000, nota: "agenda online" },
-  "trafego-pago": { min: 700, max: 1500, mensal: true, nota: "gestão mensal de anúncios" },
+  "landing-page": { min: 700, max: 1200, nota: "landing page" },
+  site: { min: 700, max: 1800, nota: "site institucional" },
+  "loja-virtual": { min: 1200, max: 2500, nota: "loja virtual" },
+  sistema: { min: 900, max: 2200, nota: "agenda online" },
+  "trafego-pago": { min: 700, max: 1200, mensal: true, nota: "gestão mensal de anúncios" },
 };
+
+export { parcelado, PARCELAS } from "./parcelas";
 
 const CIDADES_GRANDES = [
   "são paulo", "rio de janeiro", "belo horizonte", "brasília", "curitiba", "porto alegre", "salvador", "recife",
@@ -369,7 +371,7 @@ export interface Preco {
 const arredondar = (v: number) => Math.round(v / 50) * 50;
 
 /**
- * Quanto cobrar por esse lead, entre R$ 700 e R$ 3.000.
+ * Quanto cobrar por esse lead, entre R$ 700 e R$ 2.500.
  * O potencial (0 a 100%) posiciona o preço dentro da faixa do serviço:
  * nicho, cidade grande, tamanho do negócio no Google, reputação e Instagram.
  */
@@ -393,7 +395,7 @@ export function sugerirPreco(lead: Lead): Preco {
   if (lead.instagram) pot += 0.05;
 
   pot = Math.max(0, Math.min(1, pot));
-  const sugerido = Math.min(3000, Math.max(700, arredondar(base.min + (base.max - base.min) * pot)));
+  const sugerido = Math.min(2500, Math.max(700, arredondar(base.min + (base.max - base.min) * pot)));
   return {
     sugerido,
     min: base.min,

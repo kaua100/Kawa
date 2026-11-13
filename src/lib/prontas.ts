@@ -1,4 +1,5 @@
 import { TERMO_MAPS, segmentoPorId, servicoPorId, type Segmento } from "./catalogo";
+import { parcelado } from "./parcelas";
 import type { CategoriaId, Lead } from "./types";
 
 /**
@@ -26,10 +27,13 @@ export interface CtxZap {
   vendedorNome: string;
   termo: string; // "dentista", "barbearia"...
   preco: string; // "R$ 1.450"
+  parcelas: string; // "12x de R$ 139 no cartão (total R$ 1.668)"
   dominio: string; // "clinicasorrisoviana"
   nota: number | null;
   avaliacoes: number | null;
 }
+
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export function contextoZap(lead: Lead, vendedor: string, preco?: number): CtxZap {
   const nome = (lead.responsavel || "").trim().split(" ")[0] || "";
@@ -52,7 +56,11 @@ export function contextoZap(lead: Lead, vendedor: string, preco?: number): CtxZa
     saudacao: saudacaoAgora(),
     vendedorNome: vendedor.trim().split(" ")[0],
     termo: TERMO_MAPS[lead.segmento] ?? segmentoPorId(lead.segmento).nome,
-    preco: preco ? preco.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }) : "R$ 1.500",
+    preco: brl(preco || 1000),
+    parcelas: (() => {
+      const p = parcelado(preco || 1000);
+      return `${p.vezes}x de ${brl(p.parcela)} no cartão (total ${brl(p.total)})`;
+    })(),
     dominio: lead.empresa.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "suaempresa",
     ...notaGoogle(lead),
   };
@@ -121,7 +129,7 @@ export const ETAPAS: Etapa[] = [
           c.siteStatus === "nao-encontrado"
             ? `${c.saudacao}, tudo bem? Estava pesquisando ${c.seg.plural}${c.cidade ? ` aqui em ${c.cidade}` : ""} e encontrei ${c.empresa} no Google.
 
-Queria ver mais sobre vocês, mas não achei site. Vocês têm algum?`
+Queria ver mais sobre vocês, mas não encontrei o site de vocês.`
             : `${c.saudacao}, tudo bem? Estava pesquisando ${c.seg.plural}${c.cidade ? ` aqui em ${c.cidade}` : ""} e encontrei ${c.empresa}.
 
 Entrei no site de vocês, mas não consegui ver tudo o que eu queria.
@@ -176,7 +184,9 @@ Na prática: mais gente encontra vocês, confia mais e chama para fechar.`,
         titulo: "Passar o valor",
         quando: "",
         categoria: "fechamento",
-        texto: (c) => `Para deixar tudo pronto, o investimento fica ${c.preco}.
+        texto: (c) => `Para deixar tudo pronto, o investimento fica:
+• ${c.preco} à vista no Pix
+• ou ${c.parcelas}
 
 Já inclui:
 • Site completo, funcionando no celular e no computador
@@ -184,7 +194,7 @@ Já inclui:
 • Hospedagem do primeiro ano
 • Ajustes até ficar do jeito de vocês
 
-Fica pronto em até 7 dias. Pode ser no Pix ou parcelado no cartão. Posso dar andamento?`,
+Fica pronto em até 7 dias. Posso dar andamento?`,
       },
       {
         id: "fechamento",

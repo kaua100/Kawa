@@ -18,6 +18,7 @@ import {
   sugestao,
   textoDaMensagem,
   type RotaId,
+  parcelado,
 } from "@/lib/acoes";
 import { SEGMENTOS, STATUS, TIPOS_CONTATO, servicoPorId } from "@/lib/catalogo";
 import { ETAPAS } from "@/lib/prontas";
@@ -323,7 +324,11 @@ function Negocio({ lead }: { lead: Lead }) {
   return (
     <section className="negocio">
       <div className="preco">
-        <strong>{reais(preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
+        <strong>{reais(lead.valor ?? preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
+        {!preco.mensal && (() => {
+          const p = parcelado(lead.valor ?? preco.sugerido);
+          return <small className="preco-parc">ou {p.vezes}x de {reais(p.parcela)} ({reais(p.total)})</small>;
+        })()}
         <span className={`pot pot-${preco.potencial}`} title={preco.fatores.join("\n")}>
           Potencial {preco.potencial === "medio" ? "médio" : preco.potencial}
         </span>

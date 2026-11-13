@@ -34,7 +34,11 @@ export type SegmentoId =
   | "tatuagem"
   | "autoescola"
   | "dedetizadora"
-  | "veterinaria";
+  | "veterinaria"
+  | "chaveiro"
+  | "ar-condicionado"
+  | "lavanderia"
+  | "oficina-motos";
 
 export type CategoriaId =
   | "primeira-ligacao"

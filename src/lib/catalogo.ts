@@ -809,6 +809,87 @@ export const SEGMENTOS: Segmento[] = [
     gancho: "Vocês atendem plantão ou só com horário marcado?",
     oQueMostrar: "especialidades, vacinas, plantão, equipe, estrutura e agendamento",
   },
+
+  {
+    id: "chaveiro",
+    nome: "chaveiro",
+    plural: "chaveiros",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram chaveiro no Google na hora do aperto, trancados para fora de casa ou do carro, e chamam o primeiro que aparece",
+    dores: [
+      "quem ficou trancado para fora liga para o primeiro chaveiro que aparece no Google",
+      "os serviços, como chave de carro, fechadura digital e cópia, não aparecem para quem procura",
+      "o cliente não sabe se vocês atendem 24 horas ou em qual região",
+    ],
+    argumentos: [
+      "um site com atendimento 24 horas e a região atendida faz o cliente chamar vocês na hora",
+      "um botão de WhatsApp e ligação direta no celular facilita o chamado de urgência",
+      "mostrar chave codificada, fechadura digital e cofres traz serviços de valor maior",
+    ],
+    gancho: "Vocês atendem chamado de urgência ou mais na loja?",
+    oQueMostrar: "serviços, atendimento 24 horas, região atendida, chave de carro e fechaduras",
+  },
+  {
+    id: "ar-condicionado",
+    nome: "empresa de ar-condicionado",
+    plural: "empresas de ar-condicionado",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram instalação, limpeza ou conserto de ar-condicionado no Google, principalmente no calor, e pedem orçamento para vários",
+    dores: [
+      "no calor todo mundo pede orçamento ao mesmo tempo e fecha com quem responde primeiro",
+      "o cliente pergunta pelo WhatsApp quanto custa instalar ou limpar sem passar o modelo",
+      "contratos de manutenção com empresas e condomínios não chegam até vocês",
+    ],
+    argumentos: [
+      "um site com instalação, limpeza e manutenção explica o serviço antes do orçamento",
+      "um formulário pede o tipo de aparelho e o serviço, e o orçamento chega completo",
+      "aparecer no Google quando alguém procura instalação de ar-condicionado na cidade traz cliente o ano todo",
+    ],
+    gancho: "Vocês fazem mais instalação ou manutenção e limpeza?",
+    oQueMostrar: "instalação, limpeza, manutenção, marcas atendidas, contratos para empresas e orçamento",
+  },
+  {
+    id: "lavanderia",
+    nome: "lavanderia",
+    plural: "lavanderias",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram lavanderia perto de casa e querem saber preço por peça ou por quilo, prazo e se tem coleta",
+    dores: [
+      "o cliente pergunta preço, prazo e se busca em casa pelo WhatsApp, um por um",
+      "quem mudou para o bairro não sabe que a lavanderia existe",
+      "serviços como edredom, tapete e roupa social ficam escondidos",
+    ],
+    argumentos: [
+      "um site com tabela de preços, prazos e coleta responde as dúvidas antes da mensagem",
+      "um botão para agendar a coleta pelo WhatsApp facilita o pedido",
+      "aparecer no Google quando alguém procura lavanderia no bairro traz cliente fixo",
+    ],
+    gancho: "Vocês fazem coleta e entrega ou o cliente leva na loja?",
+    oQueMostrar: "serviços, preços por peça ou quilo, prazos, coleta e entrega e localização",
+  },
+  {
+    id: "oficina-motos",
+    nome: "oficina de motos",
+    plural: "oficinas de motos",
+    cliente: "cliente",
+    clientes: "clientes",
+    comoBuscam: "procuram oficina de moto perto de casa ou do trabalho, querem saber se atende a marca e o preço da revisão",
+    dores: [
+      "o motoboy que depende da moto para trabalhar procura quem resolve rápido no Google",
+      "as marcas atendidas e os serviços não aparecem para quem não conhece a oficina",
+      "o cliente pergunta preço de revisão e peça pelo WhatsApp, um por um",
+    ],
+    argumentos: [
+      "um site com revisão, mecânica, peças e marcas atendidas mostra o que vocês fazem",
+      "um botão para agendar a revisão pelo WhatsApp tira a moto parada do caminho",
+      "aparecer no Google quando alguém procura oficina de moto na região traz cliente novo toda semana",
+    ],
+    gancho: "Vocês atendem mais motoboy ou cliente particular?",
+    oQueMostrar: "revisão, mecânica, peças, marcas atendidas, prazo e localização",
+  },
 ];
 
 /** Termo usado na busca do Google Maps para cada nicho. */
@@ -849,6 +930,10 @@ export const TERMO_MAPS: Record<SegmentoId, string> = {
   "autoescola": "autoescola",
   "dedetizadora": "dedetizadora",
   "veterinaria": "clínica veterinária",
+  chaveiro: "chaveiro",
+  "ar-condicionado": "instalação de ar-condicionado",
+  lavanderia: "lavanderia",
+  "oficina-motos": "oficina de motos",
 };
 
 /**
@@ -893,6 +978,10 @@ export const POTENCIAL: Record<SegmentoId, 1 | 2 | 3> = {
   "autoescola": 2,
   "dedetizadora": 2,
   "veterinaria": 3,
+  chaveiro: 2,
+  "ar-condicionado": 3,
+  lavanderia: 2,
+  "oficina-motos": 2,
 };
 
 /** Nichos em ordem de potencial, para os atalhos da busca. */
@@ -908,6 +997,10 @@ export const canalNome = (id: Canal) => CANAIS.find((c) => c.id === id)?.nome ??
  * Evita mensagem falando de dentista para uma barbearia quando a busca foi feita com outro nicho selecionado.
  */
 const PISTAS: [SegmentoId, RegExp][] = [
+  ["oficina-motos", /moto ?pe[cç]as|oficina de motos?|mec[aâ]nica de motos?|motos? ?center|motocicleta/i],
+  ["ar-condicionado", /ar[- ]condicionado|climatiza|refrigera[cç][aã]o/i],
+  ["chaveiro", /chaveiro|fechadura/i],
+  ["lavanderia", /lavanderia|lavagem de roupa|lava ?roupa/i],
   ["moveis-planejados", /m[oó]veis planejados|marcenaria|planejados/i],
   ["marmoraria", /marmoraria|m[aá]rmore|granito/i],
   ["assistencia-celular", /assist[eê]ncia t[eé]cnica|conserto de celular|celulares/i],
