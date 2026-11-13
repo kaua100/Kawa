@@ -33,10 +33,13 @@ export async function POST(req: Request) {
     texto = `Crie o site desta empresa.\n\nDADOS DA EMPRESA:\n${descreverDados(p.dados)}\n\nESTILO:\n${descreverEstilo(p.estilo)}\n\nMÍDIAS DISPONÍVEIS (use só estas URLs, as melhores em destaque):\n${descreverMidias(midias)}`;
   }
 
+  const inicio = Date.now();
   try {
     const r = await gerarTexto(sistema, texto);
+    console.log(`sites/gerar ok modo=${p.modo} modelo=${r.modelo} ${Math.round((Date.now() - inicio) / 1000)}s`);
     return Response.json({ html: limparHtml(r.texto), modelo: r.modelo, aviso: r.aviso });
   } catch (e) {
+    console.error(`sites/gerar falhou modo=${p.modo} ${Math.round((Date.now() - inicio) / 1000)}s: ${e instanceof Error ? e.message : "erro"}`);
     if (e instanceof ErroGemini) return Response.json({ erro: e.message, codigo: e.codigo }, { status: e.status });
     return Response.json({ erro: e instanceof Error ? e.message : "Erro ao gerar o site." }, { status: 502 });
   }
