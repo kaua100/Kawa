@@ -11,6 +11,7 @@
     "@anthropic-ai/sdk": "^1.6.0",
     "@omnizapi/connect": "1.1.1",
     "@supabase/supabase-js": "^2.119.0",
+    "jszip": "3.10.1",
     "next": "^15.5.29",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

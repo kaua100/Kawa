@@ -77,3 +77,18 @@ export const IcEnviar = () => (
     <path d="m22 2-7 20-4-9-9-4z" />
   </svg>
 );
+export const IcSites = () => (
+  <svg {...base}>
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <path d="M3 9h18" />
+    <path d="M7 6.5h.01M9.5 6.5h.01" />
+    <path d="M8 14l2 2-2 2M12.5 18h3.5" />
+  </svg>
+);
+export const IcBaixar = () => (
+  <svg {...base}>
+    <path d="M12 4v11" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M5 20h14" />
+  </svg>
+);

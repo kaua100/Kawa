@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { avisar } from "@/lib/api";
 import {
   dataCurta,
@@ -26,18 +26,20 @@ import { adicionarContato, alterarLead, excluirContato, excluirLead, salvarLead,
 import type { Lead, TipoContato } from "@/lib/types";
 import { BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
 import FormLead from "./FormLead";
-import { IcFechar, IcFone, IcInsta, IcSite, IcVoltar, IcConversa } from "./Icones";
+import { IcFechar, IcFone, IcInsta, IcSite, IcVoltar, IcConversa, IcSites } from "./Icones";
 
 interface Props {
   leadId: string;
   onFechar: () => void;
   onMensagens: (leadId: string) => void;
   onConversa?: (leadId: string) => void;
+  onCriarSite?: (leadId: string) => void;
   onIA?: (leadId: string) => void;
 }
 
 /** Ficha do lead: abre por cima de qualquer tela assim que você clica no lead. */
-export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, onIA }: Props) {
+export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, onCriarSite, onIA }: Props) {
+  const dadosRef = useRef<HTMLDetailsElement>(null);
   const { leads, vendedor } = useEstado();
   const lead = leads.find((l) => l.id === leadId);
   const [editando, setEditando] = useState(false);
@@ -88,6 +90,25 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, o
             </select>
           </div>
 
+          <div className="ficha-site">
+            <button
+              className="btn"
+              onClick={() => {
+                const d = dadosRef.current;
+                if (!d) return;
+                d.open = true;
+                d.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Ver informações
+            </button>
+            {onCriarSite && (
+              <button className="btn prim" onClick={() => onCriarSite(lead.id)}>
+                <IcSites /><span>Criar site para esta empresa</span>
+              </button>
+            )}
+          </div>
+
           <Roteiro key={`${lead.id}:${lead.contatos.length}:${lead.status}:${lead.roteiro}`} lead={lead} vendedor={vendedor} onMensagens={() => onMensagens(lead.id)} />
 
           <div className="contatos-rapidos">
@@ -100,7 +121,7 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, o
 
           <Negocio lead={lead} />
 
-          <details className="dobra">
+          <details className="dobra" ref={dadosRef}>
             <summary>Dados da empresa</summary>
           <dl className="dados">
             <dt>Responsável</dt><dd>{lead.responsavel || "Não informado"}</dd>

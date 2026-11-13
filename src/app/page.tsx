@@ -8,7 +8,8 @@ import Hoje from "@/components/Hoje";
 import { PassosIphone, useInstalar } from "@/components/Instalar";
 import Configuracoes from "@/components/Configuracoes";
 import Conversas from "@/components/Conversas";
-import { IcBusca, IcConfig, IcConversa, IcGrafico, IcHoje, IcLeads, IcMsg, IcSair, IcVoltar } from "@/components/Icones";
+import CriarSites from "@/components/CriarSites";
+import { IcBusca, IcConfig, IcConversa, IcGrafico, IcHoje, IcLeads, IcMsg, IcSair, IcSites, IcVoltar } from "@/components/Icones";
 import Leads from "@/components/Leads";
 import Login, { NovaSenha } from "@/components/Login";
 import Resultados from "@/components/Resultados";
@@ -19,7 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { montarConversas, useConversas, useRegistrarRespostas } from "@/lib/conversas";
 import { chaveFone, useZap } from "@/lib/zap";
 
-type Tela = "hoje" | "leads" | "funil" | "buscar" | "conversas" | "central" | "resultados" | "config";
+type Tela = "hoje" | "leads" | "funil" | "buscar" | "conversas" | "sites" | "central" | "resultados" | "config";
 
 interface Rota {
   tela: Tela;
@@ -69,6 +70,7 @@ const NAV: { tela: Tela; nome: string; curto: string; Icone: () => React.ReactEl
   { tela: "leads", nome: "Leads", curto: "Leads", Icone: IcLeads },
   { tela: "buscar", nome: "Buscar empresas", curto: "Buscar", Icone: IcBusca },
   { tela: "conversas", nome: "Conversas", curto: "Conversas", Icone: IcConversa },
+  { tela: "sites", nome: "Criar Sites", curto: "Sites", Icone: IcSites },
   { tela: "central", nome: "Mensagens prontas", curto: "Scripts", Icone: IcMsg },
   { tela: "resultados", nome: "Resultados", curto: "Métricas", Icone: IcGrafico },
 ];
@@ -79,6 +81,7 @@ const TITULO: Record<Tela, string> = {
   funil: "Funil",
   buscar: "Buscar empresas",
   conversas: "Conversas",
+  sites: "Criar Sites",
   central: "Mensagens prontas",
   resultados: "Resultados",
   config: "Configurações",
@@ -175,7 +178,7 @@ function App({ email }: { email: string }) {
         </div>
         <nav className="nav" aria-label="Principal">
           {NAV.map(({ tela, nome, curto, Icone }) => (
-            <button key={tela} className={`nav-btn ${telaNav === tela ? "ativo" : ""}`} onClick={() => ir({ tela })} aria-current={telaNav === tela ? "page" : undefined}>
+            <button key={tela} className={`nav-btn ${telaNav === tela ? "ativo" : ""}`} onClick={() => ir({ tela, lead: null })} aria-current={telaNav === tela ? "page" : undefined}>
               <Icone />
               <span className="nav-nome">{nome}</span>
               <span className="nav-curto">{curto}</span>
@@ -240,6 +243,8 @@ function App({ email }: { email: string }) {
           <Resultados />
         ) : rota.tela === "conversas" ? (
           <Conversas abrirChave={rota.conversa} onAbrirLead={abrirFicha} onConectar={() => ir({ tela: "config" })} />
+        ) : rota.tela === "sites" ? (
+          <CriarSites key={rota.lead ?? "lista"} leadInicial={rota.lead ?? null} onAbrirLead={abrirFicha} />
         ) : rota.tela === "config" ? (
           <Configuracoes onConversas={() => ir({ tela: "conversas" })} />
         ) : (
@@ -256,7 +261,7 @@ function App({ email }: { email: string }) {
 
       <nav className="nav-mobile" aria-label="Principal">
         {NAV.map(({ tela, curto, Icone }) => (
-          <button key={tela} className={telaNav === tela ? "ativo" : ""} onClick={() => ir({ tela })} aria-current={telaNav === tela ? "page" : undefined}>
+          <button key={tela} className={telaNav === tela ? "ativo" : ""} onClick={() => ir({ tela, lead: null })} aria-current={telaNav === tela ? "page" : undefined}>
             <span className="nm-icone">
               <Icone />
               {tela === "hoje" && naFila > 0 && <i>{naFila > 99 ? "99+" : naFila}</i>}
@@ -272,6 +277,7 @@ function App({ email }: { email: string }) {
           leadId={rota.ficha}
           onFechar={voltar}
           onMensagens={(id) => ir({ tela: "central", aba: "prontas", lead: id })}
+          onCriarSite={(id) => ir({ tela: "sites", lead: id })}
           onConversa={zap.configurado ? (id) => ir({ tela: "conversas", conversa: chaveFone(leads.find((l) => l.id === id)?.telefone ?? "") }) : undefined}
           onIA={integ.ia ? (id) => ir({ tela: "central", aba: "gerador", lead: id }) : undefined}
         />
