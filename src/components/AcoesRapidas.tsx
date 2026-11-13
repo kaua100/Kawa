@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { avisar } from "@/lib/api";
+import { enviarPeloZap, useZap } from "@/lib/zap";
 import { linkMaps, linkZap, qualificar, registrarEnvio, sugestao, temWhatsApp, textoDaMensagem, type DadosQualificacao } from "@/lib/acoes";
 import { useEstado } from "@/lib/store";
 import type { Lead } from "@/lib/types";
@@ -12,23 +14,48 @@ import { IcPino, IcZap } from "./Icones";
  */
 export function BotaoZap({ lead, msgId, texto, rotulo, compacto }: { lead: Lead; msgId?: string; texto?: string; rotulo?: string; compacto?: boolean }) {
   const { vendedor } = useEstado();
+  const zap = useZap();
+  const [enviando, setEnviando] = useState(false);
   const id = msgId ?? sugestao(lead).msg.id;
   const corpo = texto ?? textoDaMensagem(lead, id, vendedor);
+  const direto = zap.configurado && zap.conectado && temWhatsApp(lead);
   return (
     <a
-      className={`btn zap ${compacto ? "icone" : ""}`}
+      className={`btn zap ${compacto ? "icone" : ""} ${enviando ? "enviando" : ""}`}
       href={linkZap(lead, corpo)}
       target="_blank"
       rel="noopener noreferrer"
-      title={temWhatsApp(lead) ? `Abrir conversa com ${lead.empresa} já com a mensagem` : "Sem telefone válido: o WhatsApp vai pedir para você escolher o contato"}
-      onClick={(e) => {
+      aria-busy={enviando}
+      title={
+        direto
+          ? `Enviar para ${lead.empresa} pelo seu WhatsApp conectado`
+          : temWhatsApp(lead)
+            ? `Abrir conversa com ${lead.empresa} já com a mensagem`
+            : "Sem telefone válido: o WhatsApp vai pedir para você escolher o contato"
+      }
+      onClick={async (e) => {
         e.stopPropagation();
-        registrarEnvio(lead, id);
-        avisar(`Mensagem aberta no WhatsApp. Próximo contato agendado.`);
+        if (!direto) {
+          registrarEnvio(lead, id);
+          avisar(`Mensagem aberta no WhatsApp. Próximo contato agendado.`);
+          return;
+        }
+        e.preventDefault();
+        if (enviando) return;
+        setEnviando(true);
+        try {
+          await enviarPeloZap(lead.telefone, corpo, lead.id);
+          registrarEnvio(lead, id);
+          avisar(`Enviado para ${lead.empresa}. Próximo contato agendado.`);
+        } catch (err) {
+          avisar(`Não enviou: ${(err as Error).message}`);
+        } finally {
+          setEnviando(false);
+        }
       }}
     >
       <IcZap />
-      {!compacto && <span>{rotulo ?? "WhatsApp"}</span>}
+      {!compacto && <span>{enviando ? "Enviando..." : rotulo ?? "WhatsApp"}</span>}
     </a>
   );
 }

@@ -26,17 +26,18 @@ import { adicionarContato, alterarLead, excluirContato, excluirLead, salvarLead,
 import type { Lead, TipoContato } from "@/lib/types";
 import { BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
 import FormLead from "./FormLead";
-import { IcFechar, IcFone, IcInsta, IcSite, IcVoltar } from "./Icones";
+import { IcFechar, IcFone, IcInsta, IcSite, IcVoltar, IcConversa } from "./Icones";
 
 interface Props {
   leadId: string;
   onFechar: () => void;
   onMensagens: (leadId: string) => void;
+  onConversa?: (leadId: string) => void;
   onIA?: (leadId: string) => void;
 }
 
 /** Ficha do lead: abre por cima de qualquer tela assim que você clica no lead. */
-export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props) {
+export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, onIA }: Props) {
   const { leads, vendedor } = useEstado();
   const lead = leads.find((l) => l.id === leadId);
   const [editando, setEditando] = useState(false);
@@ -91,6 +92,7 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onIA }: Props
 
           <div className="contatos-rapidos">
             <BotaoMaps lead={lead} />
+            {onConversa && lead.telefone && <button className="btn" onClick={() => onConversa(lead.id)}><IcConversa /><span>Conversa</span></button>}
             {linkTelefone(lead) && <a className="btn" href={linkTelefone(lead)}><IcFone /><span>Ligar</span></a>}
             {linkInstagram(lead) && <a className="btn" href={linkInstagram(lead)} target="_blank" rel="noopener noreferrer"><IcInsta /><span>Instagram</span></a>}
             {lead.site && <a className="btn" href={linkSite(lead.site)} target="_blank" rel="noopener noreferrer"><IcSite /><span>Site</span></a>}

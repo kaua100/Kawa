@@ -6,7 +6,9 @@ import Central, { type AbaCentral } from "@/components/Central";
 import FichaLead from "@/components/FichaLead";
 import Hoje from "@/components/Hoje";
 import { PassosIphone, useInstalar } from "@/components/Instalar";
-import { IcBusca, IcGrafico, IcHoje, IcLeads, IcMsg, IcSair, IcVoltar } from "@/components/Icones";
+import Configuracoes from "@/components/Configuracoes";
+import Conversas from "@/components/Conversas";
+import { IcBusca, IcConfig, IcConversa, IcGrafico, IcHoje, IcLeads, IcMsg, IcSair, IcVoltar } from "@/components/Icones";
 import Leads from "@/components/Leads";
 import Login, { NovaSenha } from "@/components/Login";
 import Resultados from "@/components/Resultados";
@@ -14,14 +16,17 @@ import { useIntegracoes } from "@/lib/api";
 import { filaDeHoje } from "@/lib/acoes";
 import { carregarDados, definirVendedor, exportarDados, importarDados, limparDados, useEstado } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
+import { montarConversas, useConversas, useRegistrarRespostas } from "@/lib/conversas";
+import { chaveFone, useZap } from "@/lib/zap";
 
-type Tela = "hoje" | "leads" | "funil" | "buscar" | "central" | "resultados";
+type Tela = "hoje" | "leads" | "funil" | "buscar" | "conversas" | "central" | "resultados" | "config";
 
 interface Rota {
   tela: Tela;
   ficha: string | null;
   aba?: AbaCentral;
   lead?: string | null;
+  conversa?: string;
 }
 
 export default function Home() {
@@ -63,8 +68,9 @@ const NAV: { tela: Tela; nome: string; curto: string; Icone: () => React.ReactEl
   { tela: "hoje", nome: "Hoje", curto: "Hoje", Icone: IcHoje },
   { tela: "leads", nome: "Leads", curto: "Leads", Icone: IcLeads },
   { tela: "buscar", nome: "Buscar empresas", curto: "Buscar", Icone: IcBusca },
-  { tela: "central", nome: "Mensagens", curto: "Mensagens", Icone: IcMsg },
-  { tela: "resultados", nome: "Resultados", curto: "Resultados", Icone: IcGrafico },
+  { tela: "conversas", nome: "Conversas", curto: "Conversas", Icone: IcConversa },
+  { tela: "central", nome: "Mensagens prontas", curto: "Scripts", Icone: IcMsg },
+  { tela: "resultados", nome: "Resultados", curto: "Métricas", Icone: IcGrafico },
 ];
 
 const TITULO: Record<Tela, string> = {
@@ -72,8 +78,10 @@ const TITULO: Record<Tela, string> = {
   leads: "Leads",
   funil: "Funil",
   buscar: "Buscar empresas",
-  central: "Mensagens",
+  conversas: "Conversas",
+  central: "Mensagens prontas",
   resultados: "Resultados",
+  config: "Configurações",
 };
 
 function App({ email }: { email: string }) {
@@ -84,6 +92,10 @@ function App({ email }: { email: string }) {
   const [menuConta, setMenuConta] = useState(false);
   const [passosIphone, setPassosIphone] = useState(false);
   const inst = useInstalar();
+  const zap = useZap(true);
+  const conversas = useConversas();
+  useRegistrarRespostas(leads);
+  const naoLidas = montarConversas(conversas.msgs, conversas.lidas, leads).reduce((n, c) => n + (c.naoLidas ? 1 : 0), 0);
 
   // Navegação ligada ao histórico do navegador: o botão voltar do celular funciona.
   useEffect(() => {
@@ -169,6 +181,7 @@ function App({ email }: { email: string }) {
               <span className="nav-curto">{curto}</span>
               {tela === "hoje" && naFila > 0 && <span className="nav-qtd">{naFila}</span>}
               {tela === "leads" && <span className="nav-qtd fraco">{leads.length}</span>}
+              {tela === "conversas" && naoLidas > 0 && <span className="nav-qtd">{naoLidas}</span>}
             </button>
           ))}
         </nav>
@@ -177,6 +190,9 @@ function App({ email }: { email: string }) {
             <div className="conta-menu" role="dialog" aria-label="Sua conta">
               <label htmlFor="vendedor">Seu nome</label>
               <input id="vendedor" value={vendedor} onChange={(e) => definirVendedor(e.target.value)} placeholder="Ex.: Kaua" />
+              <button onClick={() => { setMenuConta(false); ir({ tela: "config" }); }}>
+                <IcConfig /> Conectar WhatsApp <span className={`zap-ponto ${zap.conectado ? "ok" : ""}`} aria-label={zap.conectado ? "conectado" : "desconectado"} />
+              </button>
               <button onClick={exportar}>Baixar backup</button>
               <button onClick={importar}>Restaurar backup</button>
               {!inst.instalado && (inst.podeInstalar || inst.iphone) && (
@@ -202,7 +218,10 @@ function App({ email }: { email: string }) {
           <div className="marca mini"><div className="marca-sinal" aria-hidden>M</div><b>Mindstrat</b></div>
         )}
         <span className="barra-titulo">{rota.tela !== "hoje" ? TITULO[rota.tela] : ""}</span>
-        <button className="sair-mobile" onClick={() => supabase.auth.signOut()} aria-label="Sair da conta"><IcSair /></button>
+        <span className="barra-acoes">
+          <button className="sair-mobile" onClick={() => ir({ tela: "config" })} aria-label="Configurações e WhatsApp"><IcConfig /><span className={`zap-ponto ${zap.conectado ? "ok" : ""}`} /></button>
+          <button className="sair-mobile" onClick={() => supabase.auth.signOut()} aria-label="Sair da conta"><IcSair /></button>
+        </span>
       </header>
 
       <main className="main">
@@ -219,6 +238,10 @@ function App({ email }: { email: string }) {
           <BuscarLeads onImportados={() => ir({ tela: "hoje" })} onAbrir={abrirFicha} />
         ) : rota.tela === "resultados" ? (
           <Resultados />
+        ) : rota.tela === "conversas" ? (
+          <Conversas abrirChave={rota.conversa} onAbrirLead={abrirFicha} onConectar={() => ir({ tela: "config" })} />
+        ) : rota.tela === "config" ? (
+          <Configuracoes onConversas={() => ir({ tela: "conversas" })} />
         ) : (
           <Central
             key={rota.lead ?? "x"}
@@ -234,7 +257,11 @@ function App({ email }: { email: string }) {
       <nav className="nav-mobile" aria-label="Principal">
         {NAV.map(({ tela, curto, Icone }) => (
           <button key={tela} className={telaNav === tela ? "ativo" : ""} onClick={() => ir({ tela })} aria-current={telaNav === tela ? "page" : undefined}>
-            <span className="nm-icone"><Icone />{tela === "hoje" && naFila > 0 && <i>{naFila > 99 ? "99+" : naFila}</i>}</span>
+            <span className="nm-icone">
+              <Icone />
+              {tela === "hoje" && naFila > 0 && <i>{naFila > 99 ? "99+" : naFila}</i>}
+              {tela === "conversas" && naoLidas > 0 && <i>{naoLidas}</i>}
+            </span>
             <span>{curto}</span>
           </button>
         ))}
@@ -245,6 +272,7 @@ function App({ email }: { email: string }) {
           leadId={rota.ficha}
           onFechar={voltar}
           onMensagens={(id) => ir({ tela: "central", aba: "prontas", lead: id })}
+          onConversa={zap.configurado ? (id) => ir({ tela: "conversas", conversa: chaveFone(leads.find((l) => l.id === id)?.telefone ?? "") }) : undefined}
           onIA={integ.ia ? (id) => ir({ tela: "central", aba: "gerador", lead: id }) : undefined}
         />
       )}

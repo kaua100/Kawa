@@ -5,6 +5,7 @@ import { avisar, postar, useIntegracoes } from "@/lib/api";
 import { linkSite, linkZap, qualificar, registrarEnvio, textoDaMensagem, type Temperatura } from "@/lib/acoes";
 import { NICHOS_EM_ALTA, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
+import { enviarPeloZap, useZap } from "@/lib/zap";
 import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salvarLead, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
 import type { Encontrado } from "@/app/api/apify/status/route";
@@ -58,6 +59,7 @@ const quandoCurto = (iso: string) => {
 export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: () => void; onAbrir: (leadId: string) => void }) {
   const { leads, apifyToken, apifyTokens, vendedor } = useEstado();
   const integ = useIntegracoes();
+  const zap = useZap();
   const [segmento, setSegmento] = useState<SegmentoId>("odontologia");
   const [busca, setBusca] = useState(TERMO_MAPS.odontologia);
   const [lugar, setLugar] = useState<Local>(() => {
@@ -481,11 +483,22 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
                             href={linkZap(paraLead(e), textoDaMensagem(paraLead(e), "rot-abordagem", vendedor))}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Chamar no WhatsApp com a primeira mensagem"
-                            onClick={() => {
+                            title={zap.conectado ? "Enviar a primeira mensagem pelo seu WhatsApp" : "Chamar no WhatsApp com a primeira mensagem"}
+                            onClick={async (ev) => {
                               const l = garantirLead(e);
-                              registrarEnvio(l, "rot-abordagem");
-                              avisar(`${e.nome} foi para a sua lista.`);
+                              if (!(zap.configurado && zap.conectado)) {
+                                registrarEnvio(l, "rot-abordagem");
+                                avisar(`${e.nome} foi para a sua lista.`);
+                                return;
+                              }
+                              ev.preventDefault();
+                              try {
+                                await enviarPeloZap(l.telefone, textoDaMensagem(l, "rot-abordagem", vendedor), l.id);
+                                registrarEnvio(l, "rot-abordagem");
+                                avisar(`Enviado para ${e.nome}. Ele foi para a sua lista.`);
+                              } catch (err) {
+                                avisar(`Não enviou: ${(err as Error).message}`);
+                              }
                             }}
                           >
                             <IcZap />
