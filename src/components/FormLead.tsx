@@ -4,7 +4,7 @@ import { useState } from "react";
 import { SEGMENTOS, SERVICOS } from "@/lib/catalogo";
 import { novoId } from "@/lib/store";
 import type { Lead } from "@/lib/types";
-import { lerLocalDoLead, SeletorLocal } from "./SeletorLocal";
+import { lerLocalDoLead, SeletorFora, SeletorLocal } from "./SeletorLocal";
 import { LISTA_PAISES, PAISES, type PaisId } from "@/lib/paises";
 
 export const leadVazio = (): Lead => ({
@@ -67,7 +67,12 @@ export default function FormLead({ inicial, onSalvar, onFechar }: { inicial: Lea
               comBairro={false}
             />
           ) : (
-            <label className="campo"><span>Cidade</span><input value={l.cidade} onChange={(e) => set("cidade", e.target.value)} placeholder="Ex.: Miami" /></label>
+            <SeletorFora
+              pais={l.pais!}
+              rotuloRegiao={PAISES[l.pais!].regiao}
+              valor={{ cidade: l.cidade.split("/")[0] ?? "", regiao: l.cidade.split("/")[1] ?? "" }}
+              onChange={(v) => set("cidade", v.cidade || v.regiao ? `${v.cidade}/${v.regiao}` : "")}
+            />
           )}
           <label className="campo">
             <span>{(l.pais ?? "BR") === "BR" ? "WhatsApp com DDD" : `WhatsApp com +${PAISES[l.pais!].ddi}`}</span>

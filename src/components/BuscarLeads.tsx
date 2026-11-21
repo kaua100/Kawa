@@ -11,7 +11,7 @@ import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salv
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
 import type { Encontrado } from "@/app/api/apify/status/route";
 import { SeloTemperatura } from "./AcoesRapidas";
-import { localParaBusca, localParaLead, SeletorLocal, type Local } from "./SeletorLocal";
+import { localParaBusca, localParaLead, nomeRegiao, SeletorFora, SeletorLocal, useLocaisPais, type Local, type LocalFora } from "./SeletorLocal";
 import { IcInsta, IcPino, IcSite, IcZap } from "./Icones";
 
 const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim().toLowerCase();
@@ -72,13 +72,14 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
       return "BR";
     }
   });
-  const [fora, setFora] = useState<{ cidade: string; regiao: string }>(() => {
+  const [foraPorPais, setForaPorPais] = useState<Record<string, LocalFora>>(() => {
     try {
-      return JSON.parse(localStorage.getItem("mindstrat:local-fora") || "") as { cidade: string; regiao: string };
+      return JSON.parse(localStorage.getItem("mindstrat:local-fora-v2") || "{}") as Record<string, LocalFora>;
     } catch {
-      return { cidade: "", regiao: "" };
+      return {};
     }
   });
+  const fora = foraPorPais[paisSel] ?? { regiao: "", cidade: "" };
   const pais = PAISES[paisSel];
   const busca = termoDeBusca(segmento, TERMO_MAPS[segmento], pais);
   const [paisResultado, setPaisResultado] = useState<PaisId>("BR");
@@ -89,7 +90,8 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
       return { uf: "", cidade: "", bairro: "" };
     }
   });
-  const local = paisSel === "BR" ? localParaBusca(lugar) : [fora.cidade.trim(), fora.regiao.trim(), pais.nomeBusca].filter(Boolean).join(", ");
+  const dadosPais = useLocaisPais(paisSel);
+  const local = paisSel === "BR" ? localParaBusca(lugar) : [fora.cidade.trim(), nomeRegiao(dadosPais, fora.regiao), pais.nomeBusca].filter(Boolean).join(", ");
   const guardar = (k: string, v: string) => {
     try {
       localStorage.setItem(k, v);
@@ -101,10 +103,10 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
     setPaisSel(id);
     guardar("mindstrat:pais", id);
   };
-  const mudarFora = (x: Partial<typeof fora>) => {
-    const novo = { ...fora, ...x };
-    setFora(novo);
-    guardar("mindstrat:local-fora", JSON.stringify(novo));
+  const mudarFora = (l: LocalFora) => {
+    const novo = { ...foraPorPais, [paisSel]: l };
+    setForaPorPais(novo);
+    guardar("mindstrat:local-fora-v2", JSON.stringify(novo));
   };
   const mudarLugar = (l: Local) => {
     setLugar(l);
@@ -376,16 +378,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
           {paisSel === "BR" ? (
             <SeletorLocal valor={lugar} onChange={mudarLugar} />
           ) : (
-            <>
-              <label className="campo">
-                <span>Cidade</span>
-                <input value={fora.cidade} onChange={(e) => mudarFora({ cidade: e.target.value })} placeholder={pais.id === "PT" ? "Ex.: Porto" : pais.id === "ES" ? "Ex.: Valencia" : pais.id === "GB" ? "Ex.: Manchester" : pais.id === "AU" ? "Ex.: Melbourne" : pais.id === "CA" ? "Ex.: Toronto" : "Ex.: Miami"} required />
-              </label>
-              <label className="campo">
-                <span>{pais.regiao.split(" (")[0]} (opcional)</span>
-                <input value={fora.regiao} onChange={(e) => mudarFora({ regiao: e.target.value })} placeholder={pais.regiao.includes("(") ? pais.regiao.split("(")[1].replace(")", "") : ""} />
-              </label>
-            </>
+            <SeletorFora pais={paisSel} rotuloRegiao={pais.regiao} valor={fora} onChange={mudarFora} />
           )}
           <label className="campo">
             <span>Quantidade</span>
@@ -405,6 +398,11 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
           </label>
         </div>
 
+        {paisSel !== "BR" && (
+          <small className="dica credito-locais">
+            Lista de cidades: <a href="https://github.com/dr5hn/countries-states-cities-database" target="_blank" rel="noopener noreferrer">countries-states-cities-database</a> (licença ODbL)
+          </small>
+        )}
         <div className="busca-pe">
           <button className="btn prim grande" type="submit" disabled={rodando}>
             {rodando ? `Buscando ${segmentoPorId(segmento).plural}... ${segundos}s` : `Buscar ${segmentoPorId(segmento).plural}`}

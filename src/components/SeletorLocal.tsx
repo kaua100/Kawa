@@ -85,3 +85,69 @@ export function lerLocalDoLead(cidade: string): Local {
   const [c, uf] = cidade.split("/");
   return { cidade: (c ?? "").trim(), uf: (uf ?? "").trim().toUpperCase(), bairro: "" };
 }
+
+/* ---------- Outros países ---------- */
+
+export interface DadosPais {
+  regioes: { c: string; n: string }[];
+  cidades: Record<string, string[]>;
+}
+
+const cachePais: Record<string, DadosPais> = {};
+const carregandoPais: Record<string, Promise<DadosPais> | undefined> = {};
+
+/** Regiões e cidades de um país (lista em /public/locais, gerada do countries-states-cities-database, licença ODbL). */
+export function useLocaisPais(pais: string) {
+  const [dados, setDados] = useState<DadosPais | null>(cachePais[pais] ?? null);
+  useEffect(() => {
+    if (pais === "BR") return;
+    if (cachePais[pais]) {
+      setDados(cachePais[pais]);
+      return;
+    }
+    setDados(null);
+    carregandoPais[pais] ??= fetch(`/locais/${pais}.json`).then((r) => r.json()).then((d: DadosPais) => (cachePais[pais] = d));
+    let vivo = true;
+    carregandoPais[pais]!.then((d) => vivo && setDados(d)).catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [pais]);
+  return dados;
+}
+
+export interface LocalFora {
+  regiao: string; // código da região
+  cidade: string;
+}
+
+/** Região (lista) e cidade (lista) de outro país, escolhidas sem digitar. */
+export function SeletorFora({ pais, rotuloRegiao, valor, onChange }: { pais: string; rotuloRegiao: string; valor: LocalFora; onChange: (l: LocalFora) => void }) {
+  const dados = useLocaisPais(pais);
+  const regiaoOk = !!dados?.regioes.some((r) => r.c === valor.regiao);
+  const lista = regiaoOk ? dados!.cidades[valor.regiao] ?? [] : [];
+  return (
+    <>
+      <label className="campo">
+        <span>{rotuloRegiao}</span>
+        <select value={regiaoOk ? valor.regiao : ""} onChange={(e) => onChange({ regiao: e.target.value, cidade: "" })} required disabled={!dados}>
+          <option value="">{dados ? "Escolha" : "Carregando..."}</option>
+          {dados?.regioes.map((r) => (
+            <option key={r.c} value={r.c}>{r.n}</option>
+          ))}
+        </select>
+      </label>
+      <label className="campo">
+        <span>Cidade</span>
+        <select value={lista.includes(valor.cidade) ? valor.cidade : ""} onChange={(e) => onChange({ ...valor, cidade: e.target.value })} required disabled={!regiaoOk}>
+          <option value="">{regiaoOk ? "Escolha a cidade" : `Escolha ${rotuloRegiao.toLowerCase().startsWith("p") ? "a" : "o"} ${rotuloRegiao.toLowerCase()}`}</option>
+          {lista.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+}
+
+export const nomeRegiao = (d: DadosPais | null, codigo: string) => d?.regioes.find((r) => r.c === codigo)?.n ?? "";

@@ -24,12 +24,12 @@ export interface Pais {
 
 export const PAISES: Record<PaisId, Pais> = {
   BR: { id: "BR", nome: "Brasil", bandeira: "🇧🇷", lingua: "pt", locale: "pt-BR", idiomaNome: "Português", nomeBusca: "Brasil", ddi: "55", moeda: "BRL", fuso: "America/Sao_Paulo", regiao: "Estado", tld: ".com.br", apifyIdioma: "pt-BR", site: [700, 1800] },
-  US: { id: "US", nome: "Estados Unidos", bandeira: "🇺🇸", lingua: "en", locale: "en-US", idiomaNome: "Inglês", nomeBusca: "United States", ddi: "1", moeda: "USD", fuso: "America/New_York", regiao: "Estado (ex.: Florida)", tld: ".com", apifyIdioma: "en", site: [500, 1500] },
-  CA: { id: "CA", nome: "Canadá", bandeira: "🇨🇦", lingua: "en", locale: "en-CA", idiomaNome: "Inglês", nomeBusca: "Canada", ddi: "1", moeda: "CAD", fuso: "America/Toronto", regiao: "Província (ex.: Ontario)", tld: ".ca", apifyIdioma: "en", site: [600, 1800] },
-  GB: { id: "GB", nome: "Reino Unido", bandeira: "🇬🇧", lingua: "en", locale: "en-GB", idiomaNome: "Inglês", nomeBusca: "United Kingdom", ddi: "44", moeda: "GBP", fuso: "Europe/London", regiao: "Região (ex.: Greater London)", tld: ".co.uk", apifyIdioma: "en", site: [400, 1200] },
-  PT: { id: "PT", nome: "Portugal", bandeira: "🇵🇹", lingua: "pt-PT", locale: "pt-PT", idiomaNome: "Português de Portugal", nomeBusca: "Portugal", ddi: "351", moeda: "EUR", fuso: "Europe/Lisbon", regiao: "Distrito (ex.: Lisboa)", tld: ".pt", apifyIdioma: "pt-PT", site: [350, 1000] },
-  ES: { id: "ES", nome: "Espanha", bandeira: "🇪🇸", lingua: "es", locale: "es-ES", idiomaNome: "Espanhol", nomeBusca: "España", ddi: "34", moeda: "EUR", fuso: "Europe/Madrid", regiao: "Província (ex.: Madrid)", tld: ".es", apifyIdioma: "es", site: [350, 1000] },
-  AU: { id: "AU", nome: "Austrália", bandeira: "🇦🇺", lingua: "en", locale: "en-AU", idiomaNome: "Inglês", nomeBusca: "Australia", ddi: "61", moeda: "AUD", fuso: "Australia/Sydney", regiao: "Estado (ex.: NSW)", tld: ".com.au", apifyIdioma: "en", site: [700, 2000] },
+  US: { id: "US", nome: "Estados Unidos", bandeira: "🇺🇸", lingua: "en", locale: "en-US", idiomaNome: "Inglês", nomeBusca: "United States", ddi: "1", moeda: "USD", fuso: "America/New_York", regiao: "Estado", tld: ".com", apifyIdioma: "en", site: [500, 1500] },
+  CA: { id: "CA", nome: "Canadá", bandeira: "🇨🇦", lingua: "en", locale: "en-CA", idiomaNome: "Inglês", nomeBusca: "Canada", ddi: "1", moeda: "CAD", fuso: "America/Toronto", regiao: "Província", tld: ".ca", apifyIdioma: "en", site: [600, 1800] },
+  GB: { id: "GB", nome: "Reino Unido", bandeira: "🇬🇧", lingua: "en", locale: "en-GB", idiomaNome: "Inglês", nomeBusca: "United Kingdom", ddi: "44", moeda: "GBP", fuso: "Europe/London", regiao: "Condado", tld: ".co.uk", apifyIdioma: "en", site: [400, 1200] },
+  PT: { id: "PT", nome: "Portugal", bandeira: "🇵🇹", lingua: "pt-PT", locale: "pt-PT", idiomaNome: "Português de Portugal", nomeBusca: "Portugal", ddi: "351", moeda: "EUR", fuso: "Europe/Lisbon", regiao: "Distrito", tld: ".pt", apifyIdioma: "pt-PT", site: [350, 1000] },
+  ES: { id: "ES", nome: "Espanha", bandeira: "🇪🇸", lingua: "es", locale: "es-ES", idiomaNome: "Espanhol", nomeBusca: "España", ddi: "34", moeda: "EUR", fuso: "Europe/Madrid", regiao: "Província", tld: ".es", apifyIdioma: "es", site: [350, 1000] },
+  AU: { id: "AU", nome: "Austrália", bandeira: "🇦🇺", lingua: "en", locale: "en-AU", idiomaNome: "Inglês", nomeBusca: "Australia", ddi: "61", moeda: "AUD", fuso: "Australia/Sydney", regiao: "Estado", tld: ".com.au", apifyIdioma: "en", site: [700, 2000] },
 };
 
 export const LISTA_PAISES: Pais[] = ["BR", "US", "CA", "GB", "PT", "ES", "AU"].map((id) => PAISES[id as PaisId]);
