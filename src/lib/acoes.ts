@@ -1,4 +1,5 @@
-import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type Etapa, type MensagemPronta } from "./prontas";
+import { dinheiro, paisDoLead, precoNoPais } from "./paises";
+import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type Etapa, type MensagemPronta, textoMsg } from "./prontas";
 import { POTENCIAL } from "./catalogo";
 import { adicionarContato, alterarLead } from "./store";
 import type { Lead } from "./types";
@@ -154,7 +155,7 @@ const ESPERA: Record<string, number | null> = {
 export const ctxDoLead = (lead: Lead, vendedor: string) => contextoZap(lead, vendedor, lead.valor ?? sugerirPreco(lead).sugerido);
 
 export function textoDaMensagem(lead: Lead, msgId: string, vendedor: string) {
-  return mensagemPorId(msgId).msg.texto(ctxDoLead(lead, vendedor));
+  return textoMsg(mensagemPorId(msgId).msg, ctxDoLead(lead, vendedor));
 }
 
 /** Etapa em que o lead passa a estar depois de cada mensagem do roteiro. */
@@ -395,11 +396,12 @@ export function sugerirPreco(lead: Lead): Preco {
   if (lead.instagram) pot += 0.05;
 
   pot = Math.max(0, Math.min(1, pot));
-  const sugerido = Math.min(2500, Math.max(700, arredondar(base.min + (base.max - base.min) * pot)));
+  const pais = paisDoLead(lead);
+  const sugerido = precoNoPais(Math.min(2500, Math.max(700, arredondar(base.min + (base.max - base.min) * pot))), pais);
   return {
     sugerido,
-    min: base.min,
-    max: base.max,
+    min: precoNoPais(base.min, pais),
+    max: precoNoPais(base.max, pais),
     mensal: Boolean(base.mensal),
     potencial: pot >= 0.65 ? "alto" : pot >= 0.35 ? "medio" : "baixo",
     fatores,
@@ -407,6 +409,9 @@ export function sugerirPreco(lead: Lead): Preco {
 }
 
 export const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+/** Valor na moeda do país do lead (R$, US$, £, €...). */
+export const valorTexto = (lead: Lead, v: number) => (paisDoLead(lead).id === "BR" ? reais(v) : dinheiro(v, paisDoLead(lead)));
 
 /* ---------- Métricas ---------- */
 
@@ -458,13 +463,15 @@ export function calcularMetricas(leads: Lead[], periodo: Periodo): Metricas {
     if (noPeriodo(m.interessado)) responderam++;
     if (noPeriodo(m.reuniao)) reunioes++;
     if (noPeriodo(m.proposta)) propostas++;
+    // Os totais em R$ somam só os leads do Brasil (os de fora estão em outra moeda).
+    const emReais = paisDoLead(l).id === "BR";
     if (l.status === "fechado" && noPeriodo(m.fechado)) {
       fechados++;
-      faturado += l.valor ?? 0;
+      if (emReais) faturado += l.valor ?? 0;
       n(l.segmento).fechados++;
-      n(l.segmento).faturado += l.valor ?? 0;
+      if (emReais) n(l.segmento).faturado += l.valor ?? 0;
     }
-    if (l.status === "interessado" || l.status === "reuniao" || l.status === "proposta") {
+    if (emReais && (l.status === "interessado" || l.status === "reuniao" || l.status === "proposta")) {
       emNegociacao += l.valor ?? sugerirPreco(l).sugerido;
     }
   }

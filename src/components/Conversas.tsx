@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { avisar, postar, useIntegracoes } from "@/lib/api";
-import { reais, sugerirPreco } from "@/lib/acoes";
+import { reais, sugerirPreco, valorTexto } from "@/lib/acoes";
 import { segmentoPorId, STATUS } from "@/lib/catalogo";
 import { marcarLida, montarConversas, useConversas, type Conversa, type MsgZap } from "@/lib/conversas";
 import { adicionarContato, useEstado } from "@/lib/store";
@@ -115,7 +115,7 @@ function Conversa({ c, msgs, onVoltar, onAbrirLead, podeEnviar }: { c: Conversa;
         empresa: l?.empresa ?? c.nome,
         nicho: l ? segmentoPorId(l.segmento).nome : undefined,
         etapa: l ? STATUS.find((s) => s.id === l.status)?.nome : undefined,
-        preco: l ? reais(l.valor ?? sugerirPreco(l).sugerido) : undefined,
+        preco: l ? valorTexto(l, l.valor ?? sugerirPreco(l).sugerido) : undefined,
         vendedor,
       });
       setTexto(r.texto);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { avisar } from "@/lib/api";
-import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type CtxZap, type MensagemPronta } from "@/lib/prontas";
+import { contextoZap, ETAPAS, linkWhatsApp, telefoneWhatsApp, type CtxZap, type MensagemPronta, textoMsg } from "@/lib/prontas";
 import { ctxDoLead, mensagemPorId, registrarEnvio, ROTEIROS, type RotaId } from "@/lib/acoes";
 import { salvarScript, useEstado } from "@/lib/store";
 import type { Lead } from "@/lib/types";
@@ -87,8 +87,8 @@ export default function MensagensProntas({ leadInicial, onCadastrar }: { leadIni
 }
 
 function CardMensagem({ m, ctx, lead, etapaNome }: { m: MensagemPronta; ctx: CtxZap; lead: Lead; etapaNome: string }) {
-  const [texto, setTexto] = useState(() => m.texto(ctx));
-  const original = m.texto(ctx);
+  const [texto, setTexto] = useState(() => textoMsg(m, ctx));
+  const original = textoMsg(m, ctx);
 
   const enviar = () => {
     registrarEnvio(lead, m.id);

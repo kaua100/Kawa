@@ -10,6 +10,7 @@ import {
   dadosVazios,
   enviarArquivo,
   ESTILOS,
+  IDIOMAS_SITE,
   listarProjetos,
   salvarProjeto,
   SECOES,
@@ -345,12 +346,18 @@ function AbaDados({ d, mudar }: { d: DadosSite; mudar: (k: keyof DadosSite, v: s
   return (
     <div className="aba-dados">
       <p className="dica">A IA usa só o que estiver aqui. O que faltar, ela deixa de fora.</p>
+      <label className="campo">
+        <span>Idioma do site</span>
+        <select value={d.idioma || "Português do Brasil"} onChange={(e) => mudar("idioma", e.target.value)}>
+          {IDIOMAS_SITE.map((i) => <option key={i}>{i}</option>)}
+        </select>
+      </label>
       {campo("empresa", "Empresa")}
       {campo("segmento", "Segmento")}
       {campo("cidade", "Cidade")}
       {campo("endereco", "Endereço")}
       {campo("telefone", "Telefone")}
-      {campo("whatsapp", "WhatsApp (só números, com 55)")}
+      {campo("whatsapp", "WhatsApp (só números, com código do país)")}
       {campo("instagram", "Instagram", "@perfil")}
       {campo("mapa", "Link do Google Maps")}
       {campo("nota", "Avaliação no Google", "Ex.: 4,8 com 157 avaliações")}

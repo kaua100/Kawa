@@ -13,6 +13,7 @@ export interface DadosSite {
   nota: string;
   descricao: string;
   servicos: string;
+  idioma?: string;
 }
 
 export interface EstiloSite {
@@ -31,7 +32,7 @@ export interface MidiaSite {
   descricao?: string;
 }
 
-const REGRAS_TEXTO = `REGRAS DE TEXTO (português do Brasil):
+const REGRAS_TEXTO = `REGRAS DE TEXTO (escreva no idioma pedido em "Idioma do site"; as proibições valem para os equivalentes nesse idioma):
 - Escreva como um redator experiente, específico e direto. Frases curtas, sem cara de IA.
 - Use só fatos dos dados da empresa. Nunca invente números, anos de experiência, prêmios, depoimentos, clientes, preços, horários ou promessas.
 - Se uma informação não existir nos dados, não crie: deixe a seção de fora ou use um texto neutro sem afirmar fatos.
@@ -45,18 +46,18 @@ const REGRAS_CODIGO = `REGRAS DE CÓDIGO:
 - Responsivo de verdade (celular primeiro), menu que funciona no celular, imagens com object-fit e loading="lazy", contraste legível.
 - Use APENAS as URLs de imagens e vídeos fornecidas na lista de mídias. Nunca use imagens de banco, placeholders ou URLs inventadas. Sem mídia, faça um layout bonito só com cor, tipografia e formas em CSS.
 - Vídeos: <video> com muted, playsinline, loop e autoplay apenas quando for fundo; senão controls.
-- Links de WhatsApp no formato https://wa.me/NUMERO (só dígitos, com 55). Telefone com tel:. Instagram com https://instagram.com/usuario.
+- Links de WhatsApp no formato https://wa.me/NUMERO (só dígitos, com o código do país). Telefone com tel:. Instagram com https://instagram.com/usuario.
 - Mapa: se houver endereço, use um iframe do Google Maps com a busca do endereço (https://www.google.com/maps?q=ENDERECO&output=embed).
 - <title> e <meta name="description"> com o nome da empresa e o que ela faz na cidade.
 - Marque cada seção com <section id="..."> para facilitar edições.`;
 
-export const SISTEMA_GERAR = `Você cria sites profissionais de uma página para negócios locais brasileiros. O site precisa parecer feito sob medida para a empresa, moderno e pronto para publicar.
+export const SISTEMA_GERAR = `Você cria sites profissionais de uma página para negócios locais. O site precisa parecer feito sob medida para a empresa, moderno e pronto para publicar.
 
 ${REGRAS_TEXTO}
 
 ${REGRAS_CODIGO}`;
 
-export const SISTEMA_EDITAR = `Você edita um site HTML existente de um negócio local brasileiro, seguindo o pedido do usuário.
+export const SISTEMA_EDITAR = `Você edita um site HTML existente de um negócio local, seguindo o pedido do usuário. Mantenha o idioma do site, a menos que o pedido diga outro.
 Mude só o que foi pedido e mantenha todo o resto igual (textos, seções, estilo e mídias não citados).
 Devolva o arquivo HTML COMPLETO já modificado.
 
@@ -68,6 +69,7 @@ const linha = (k: string, v: string) => (v?.trim() ? `- ${k}: ${v.trim()}` : "")
 
 export function descreverDados(d: DadosSite) {
   return [
+    `- Idioma do site: ${d.idioma?.trim() || "Português do Brasil"} (todos os textos, botões, títulos, <html lang> e meta tags neste idioma; use a moeda, os formatos de telefone e endereço desse país)`,
     linha("Empresa", d.empresa),
     linha("Segmento", d.segmento),
     linha("Cidade", d.cidade),

@@ -1,5 +1,6 @@
 import { TERMO_MAPS, segmentoPorId, servicoPorId, type Segmento } from "./catalogo";
 import { parcelado } from "./parcelas";
+import { ajustarPT, dinheiro, horaNoPais, paisDoLead, SEG_EN, SEG_ES, type Lingua, type Pais } from "./paises";
 import type { CategoriaId, Lead } from "./types";
 
 /**
@@ -31,21 +32,43 @@ export interface CtxZap {
   dominio: string; // "clinicasorrisoviana"
   nota: number | null;
   avaliacoes: number | null;
+  lingua: Lingua;
+  pais: Pais;
+  site_: string; // "www.clinicasorriso.com.br" / "www.clinicasorriso.com"
 }
 
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 export function contextoZap(lead: Lead, vendedor: string, preco?: number): CtxZap {
+  const pais = paisDoLead(lead);
+  const lingua = pais.lingua;
   const nome = (lead.responsavel || "").trim().split(" ")[0] || "";
   const sv = servicoPorId(lead.servicoInteresse);
+  const segBase = segmentoPorId(lead.segmento);
+  const tr = lingua === "en" ? SEG_EN[lead.segmento] : lingua === "es" ? SEG_ES[lead.segmento] : null;
+  const seg: Segmento = tr ? { ...segBase, plural: tr.plural, oQueMostrar: tr.mostrar } : lingua === "pt-PT" ? { ...segBase, plural: ajustarPT(segBase.plural), oQueMostrar: ajustarPT(segBase.oQueMostrar) } : segBase;
+  const termoBR = TERMO_MAPS[lead.segmento] ?? segBase.nome;
+  const dominio = lead.empresa.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || (lingua === "en" ? "yourbusiness" : lingua === "es" ? "tuempresa" : "suaempresa");
+  const valor = preco || (pais.id === "BR" ? 1000 : pais.site[0]);
+  const vend = vendedor.trim();
+  const oi =
+    lingua === "en" ? (nome ? `Hi ${nome}, how are you?` : "Hi, how are you?")
+    : lingua === "es" ? (nome ? `Hola, ${nome}, ¿qué tal?` : "Hola, ¿qué tal?")
+    : lingua === "pt-PT" ? (nome ? `Olá, ${nome}, tudo bem?` : "Olá, tudo bem?")
+    : nome ? `Oi, ${nome}, tudo bem?` : "Oi, tudo bem?";
+  const euSou =
+    lingua === "en" ? (vend ? `This is ${vend} from Mindstrat` : "This is Mindstrat")
+    : lingua === "es" ? (vend ? `Soy ${vend}, de Mindstrat` : "Te escribo de Mindstrat")
+    : lingua === "pt-PT" ? (vend ? `Daqui fala ${vend}, da Mindstrat` : "Falo da Mindstrat")
+    : vend ? `Aqui é ${vend}, da Mindstrat` : "Aqui é da Mindstrat";
   return {
-    oi: nome ? `Oi, ${nome}, tudo bem?` : "Oi, tudo bem?",
+    oi,
     vc: nome ? `, ${nome}` : "",
     nome,
-    euSou: vendedor.trim() ? `Aqui é ${vendedor.trim()}, da Mindstrat` : "Aqui é da Mindstrat",
+    euSou,
     empresa: lead.empresa,
     cidade: lead.cidade.split("/")[0].trim(),
-    seg: segmentoPorId(lead.segmento),
+    seg,
     servico: sv.nome,
     umServico: `${sv.artigo} ${sv.nome}`,
     servicoResumo: sv.resumo,
@@ -53,22 +76,29 @@ export function contextoZap(lead: Lead, vendedor: string, preco?: number): CtxZa
     siteStatus: lead.site ? lead.siteStatus : "nao-encontrado",
     linkDemo: (lead.linkDemo || "").trim(),
     quandoReuniao: lead.reuniaoData ? ` ${quando(lead.reuniaoData)}` : " no horário que combinamos",
-    saudacao: saudacaoAgora(),
-    vendedorNome: vendedor.trim().split(" ")[0],
-    termo: TERMO_MAPS[lead.segmento] ?? segmentoPorId(lead.segmento).nome,
-    preco: brl(preco || 1000),
+    saudacao: saudacaoAgora(pais),
+    vendedorNome: vend.split(" ")[0],
+    termo: tr ? tr.termo : lingua === "pt-PT" ? ajustarPT(termoBR) : termoBR,
+    preco: pais.id === "BR" ? brl(valor) : dinheiro(valor, pais),
     parcelas: (() => {
-      const p = parcelado(preco || 1000);
+      const p = parcelado(valor);
       return `${p.vezes}x de ${brl(p.parcela)} no cartão (total ${brl(p.total)})`;
     })(),
-    dominio: lead.empresa.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30) || "suaempresa",
+    dominio,
     ...notaGoogle(lead),
+    lingua,
+    pais,
+    site_: `www.${dominio}${pais.tld}`,
   };
 }
 
-function saudacaoAgora() {
-  const h = new Date().getHours();
-  return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+/** Bom dia / Good morning... no horário do país do lead. */
+function saudacaoAgora(p: Pais) {
+  const h = horaNoPais(p);
+  const periodo = h < 12 ? 0 : h < 18 ? 1 : 2;
+  if (p.lingua === "en") return ["Good morning", "Good afternoon", "Good evening"][periodo];
+  if (p.lingua === "es") return ["Buenos días", "Buenas tardes", "Buenas noches"][periodo];
+  return ["Bom dia", "Boa tarde", "Boa noite"][periodo];
 }
 
 function notaGoogle(lead: Lead) {
@@ -107,6 +137,16 @@ export interface MensagemPronta {
   quando: string;
   categoria: CategoriaId;
   texto: (c: CtxZap) => string;
+  /** Versões em outros idiomas. Sem versão para Portugal, usa a do Brasil ajustada. */
+  trad?: Partial<Record<Exclude<Lingua, "pt">, (c: CtxZap) => string>>;
+}
+
+/** Texto da mensagem no idioma do país do lead. */
+export function textoMsg(m: MensagemPronta, c: CtxZap): string {
+  if (c.lingua === "pt") return m.texto(c);
+  const t = m.trad?.[c.lingua];
+  if (t) return t(c);
+  return c.lingua === "pt-PT" ? ajustarPT(m.texto(c)) : m.texto(c);
 }
 
 export interface Etapa {
@@ -135,6 +175,38 @@ Queria ver mais sobre vocês, mas não encontrei o site de vocês.`
 Entrei no site de vocês, mas não consegui ver tudo o que eu queria.
 
 O site ainda está ativo ou vocês atendem mais pelo WhatsApp?`,
+        trad: {
+          en: (c) =>
+            c.siteStatus === "nao-encontrado"
+              ? `${c.saudacao}, how are you? I was looking up ${c.seg.plural}${c.cidade ? ` in ${c.cidade}` : ""} and came across ${c.empresa} on Google.
+
+I wanted to see more about you, but I couldn't find your website.`
+              : `${c.saudacao}, how are you? I was looking up ${c.seg.plural}${c.cidade ? ` in ${c.cidade}` : ""} and came across ${c.empresa}.
+
+I went to your website, but I couldn't find everything I was looking for.
+
+Is the site still active, or do you mostly handle things over WhatsApp?`,
+          es: (c) =>
+            c.siteStatus === "nao-encontrado"
+              ? `${c.saudacao}, ¿qué tal? Estaba buscando ${c.seg.plural}${c.cidade ? ` en ${c.cidade}` : ""} y encontré ${c.empresa} en Google.
+
+Quería ver más sobre vosotros, pero no encontré vuestra página web.`
+              : `${c.saudacao}, ¿qué tal? Estaba buscando ${c.seg.plural}${c.cidade ? ` en ${c.cidade}` : ""} y encontré ${c.empresa}.
+
+Entré en vuestra web, pero no pude ver todo lo que buscaba.
+
+¿La web sigue activa o atendéis más por WhatsApp?`,
+          "pt-PT": (c) =>
+            c.siteStatus === "nao-encontrado"
+              ? `${c.saudacao}, tudo bem? Estava a pesquisar ${c.seg.plural}${c.cidade ? ` em ${c.cidade}` : ""} e encontrei ${c.empresa} no Google.
+
+Queria ver mais sobre vocês, mas não encontrei o vosso site.`
+              : `${c.saudacao}, tudo bem? Estava a pesquisar ${c.seg.plural}${c.cidade ? ` em ${c.cidade}` : ""} e encontrei ${c.empresa}.
+
+Entrei no vosso site, mas não consegui ver tudo o que procurava.
+
+O site ainda está ativo ou atendem mais pelo WhatsApp?`,
+        }
       },
       {
         id: "rot-apresentacao",
@@ -144,6 +216,17 @@ O site ainda está ativo ou vocês atendem mais pelo WhatsApp?`,
         texto: (c) => `Ah, entendi! Prazer, ${c.vendedorNome ? `meu nome é ${c.vendedorNome}` : "eu sou da Mindstrat"}, eu crio sites para ${c.seg.plural}${daCidade(c)}.
 
 Justamente por isso te chamei: hoje muita gente procura ${c.termo} no Google antes de escolher onde ir, e quem aparece primeiro acaba ficando com esses clientes.`,
+        trad: {
+          en: (c) => `Got it! Nice to meet you, ${c.vendedorNome ? `I'm ${c.vendedorNome}` : "I'm with Mindstrat"}. I build websites for ${c.seg.plural}.
+
+That's why I reached out: these days most people search for a ${c.termo} on Google before choosing where to go, and whoever shows up first gets those customers.`,
+          es: (c) => `¡Ah, entiendo! Encantado, ${c.vendedorNome ? `me llamo ${c.vendedorNome}` : "soy de Mindstrat"} y creo páginas web para ${c.seg.plural}.
+
+Por eso os escribí: hoy mucha gente busca ${c.termo} en Google antes de elegir a dónde ir, y quien aparece primero se queda con esos clientes.`,
+          "pt-PT": (c) => `Ah, percebo! Muito prazer, ${c.vendedorNome ? `o meu nome é ${c.vendedorNome}` : "sou da Mindstrat"} e crio sites para ${c.seg.plural}.
+
+Foi precisamente por isso que vos contactei: hoje muita gente procura ${c.termo} no Google antes de escolher onde ir, e quem aparece primeiro acaba por ficar com esses clientes.`,
+        }
       },
       {
         id: "rot-permissao",
@@ -153,6 +236,17 @@ Justamente por isso te chamei: hoje muita gente procura ${c.termo} no Google ant
         texto: (c) => `Tenho uma ideia que pode ajudar ${c.empresa} a aparecer melhor no Google e receber mais clientes direto no WhatsApp.
 
 Posso te mostrar como funciona?`,
+        trad: {
+          en: (c) => `I have an idea that could help ${c.empresa} show up better on Google and get more customers messaging you directly on WhatsApp.
+
+Can I show you how it works?`,
+          es: (c) => `Tengo una idea que puede ayudar a ${c.empresa} a aparecer mejor en Google y recibir más clientes directamente por WhatsApp.
+
+¿Te puedo enseñar cómo funciona?`,
+          "pt-PT": (c) => `Tenho uma ideia que pode ajudar ${c.empresa} a aparecer melhor no Google e a receber mais clientes diretamente no WhatsApp.
+
+Posso mostrar-lhe como funciona?`,
+        }
       },
       {
         id: "rot-modelo",
@@ -167,6 +261,32 @@ ${c.linkDemo}
 
 Abre no celular e dá uma olhada com calma. Depois me diz o que achou?`
             : `Perfeito! Vou montar um modelo de como ficaria o site de ${c.empresa}, com a cara de vocês, e te mando ainda hoje. Pode ser?`,
+        trad: {
+          en: (c) =>
+            c.linkDemo
+              ? `Perfect! I put together a sample of what the ${c.empresa} website could look like:
+
+${c.linkDemo}
+
+Open it on your phone and take your time. Let me know what you think?`
+              : `Perfect! I'll put together a sample of what the ${c.empresa} website could look like, in your style, and send it over today. Sound good?`,
+          es: (c) =>
+            c.linkDemo
+              ? `¡Perfecto! He preparado un modelo de cómo quedaría la web de ${c.empresa}:
+
+${c.linkDemo}
+
+Ábrelo en el móvil y míralo con calma. ¿Luego me dices qué te parece?`
+              : `¡Perfecto! Voy a preparar un modelo de cómo quedaría la web de ${c.empresa}, con vuestro estilo, y te lo mando hoy mismo. ¿Te parece?`,
+          "pt-PT": (c) =>
+            c.linkDemo
+              ? `Perfeito! Preparei um modelo de como ficaria o site de ${c.empresa}:
+
+${c.linkDemo}
+
+Abra no telemóvel e veja com calma. Depois diz-me o que achou?`
+              : `Perfeito! Vou preparar um modelo de como ficaria o site de ${c.empresa}, com a vossa cara, e envio ainda hoje. Pode ser?`,
+        }
       },
       {
         id: "rot-explica",
@@ -178,6 +298,23 @@ Abre no celular e dá uma olhada com calma. Depois me diz o que achou?`
 Ele fica cadastrado no Google, então quando alguém procurar ${c.termo}${c.cidade ? ` em ${c.cidade}` : ""}, ${c.empresa} aparece com mais destaque, na frente de quem não tem site. Hoje os concorrentes que já estão bem posicionados no Google acabam recebendo esses clientes.
 
 Na prática: mais gente encontra vocês, confia mais e chama para fechar.`,
+        trad: {
+          en: (c) => `Here's how it works: the website shows ${c.seg.oQueMostrar}, with a button that takes customers straight to your WhatsApp.
+
+It's set up on Google, so when someone searches for a ${c.termo}${c.cidade ? ` in ${c.cidade}` : ""}, ${c.empresa} stands out ahead of businesses without a website. Right now, the competitors who already rank well on Google are the ones getting those customers.
+
+In short: more people find you, trust you more and reach out to book.`,
+          es: (c) => `Funciona así: la web muestra ${c.seg.oQueMostrar}, y tiene un botón que lleva al cliente directamente a vuestro WhatsApp.
+
+Queda registrada en Google, así que cuando alguien busque ${c.termo}${c.cidade ? ` en ${c.cidade}` : ""}, ${c.empresa} aparece con más protagonismo, por delante de quien no tiene web. Hoy los competidores que ya están bien posicionados en Google se quedan con esos clientes.
+
+En la práctica: más gente os encuentra, confía más y os escribe para contratar.`,
+          "pt-PT": (c) => `Funciona assim: o site mostra ${c.seg.oQueMostrar}, e tem um botão que leva o cliente diretamente para o vosso WhatsApp.
+
+Fica registado no Google, por isso quando alguém procurar ${c.termo}${c.cidade ? ` em ${c.cidade}` : ""}, ${c.empresa} aparece com mais destaque, à frente de quem não tem site. Hoje os concorrentes que já estão bem posicionados no Google acabam por ficar com esses clientes.
+
+Na prática: mais gente vos encontra, confia mais e contacta-vos para avançar.`,
+        }
       },
       {
         id: "rot-valor",
@@ -190,11 +327,43 @@ Na prática: mais gente encontra vocês, confia mais e chama para fechar.`,
 
 Já inclui:
 • Site completo, funcionando no celular e no computador
-• Domínio próprio (www.${c.dominio}.com.br)
+• Domínio próprio (${c.site_})
 • Hospedagem do primeiro ano
 • Ajustes até ficar do jeito de vocês
 
 Fica pronto em até 7 dias. Posso dar andamento?`,
+        trad: {
+          en: (c) => `To get everything ready, the investment is ${c.preco}, one-time.
+You pay 50% to start and 50% when the site is live.
+
+It includes:
+• A complete website that works on phones and computers
+• Your own domain (${c.site_})
+• Hosting for the first year
+• Adjustments until it's exactly how you want it
+
+It's ready within 7 days. Shall we go ahead?`,
+          es: (c) => `Para dejarlo todo listo, la inversión es de ${c.preco}, en un único pago.
+Se paga el 50% al empezar y el 50% cuando la web esté publicada.
+
+Incluye:
+• Web completa, adaptada al móvil y al ordenador
+• Dominio propio (${c.site_})
+• Alojamiento del primer año
+• Ajustes hasta que quede como queréis
+
+Está lista en un máximo de 7 días. ¿Avanzamos?`,
+          "pt-PT": (c) => `Para deixar tudo pronto, o investimento é de ${c.preco}, num único pagamento.
+Paga 50% para começar e 50% quando o site estiver online.
+
+Inclui:
+• Site completo, a funcionar no telemóvel e no computador
+• Domínio próprio (${c.site_})
+• Alojamento do primeiro ano
+• Ajustes até ficar à vossa medida
+
+Fica pronto em até 7 dias. Posso avançar?`,
+        }
       },
       {
         id: "fechamento",
@@ -208,7 +377,33 @@ Para deixar o site com a cara de vocês, me manda:
 2. As informações que vão no site (${c.seg.oQueMostrar})
 3. O comprovante da entrada
 
-Com isso eu já registro o www.${c.dominio}.com.br e coloco o site de vocês no ar.`,
+Com isso eu já registro o ${c.site_} e coloco o site de vocês no ar.`,
+        trad: {
+          en: (c) => `Great${c.vc}! Then we can get started on the ${c.empresa} project.
+
+To make the site feel like yours, please send me:
+1. Your logo and photos
+2. The information for the site (${c.seg.oQueMostrar})
+3. Proof of the first payment
+
+With that, I'll register ${c.site_} and get your site live.`,
+          es: (c) => `¡Perfecto${c.vc}! Entonces ya podemos empezar el proyecto de ${c.empresa}.
+
+Para que la web tenga vuestro estilo, envíame:
+1. El logo y fotos
+2. La información que irá en la web (${c.seg.oQueMostrar})
+3. El justificante del primer pago
+
+Con eso registro ${c.site_} y publico vuestra web.`,
+          "pt-PT": (c) => `Combinado${c.vc}! Então já podemos começar o projeto de ${c.empresa}.
+
+Para o site ficar com a vossa cara, envie-me:
+1. Logótipo e fotografias
+2. As informações que vão no site (${c.seg.oQueMostrar})
+3. O comprovativo do primeiro pagamento
+
+Com isso registo o ${c.site_} e coloco o vosso site online.`,
+        }
       },
       {
         id: "primeira-direta",
@@ -220,6 +415,23 @@ Com isso eu já registro o www.${c.dominio}.com.br e coloco o site de vocês no 
 Pesquisei ${c.empresa} no Google e ${sobreSite(c)}. Eu faço sites para ${c.seg.plural}${daCidade(c)}.
 
 Posso te mostrar uma ideia rápida de como ficaria o de vocês?`,
+        trad: {
+          en: (c) => `${c.oi} ${c.euSou}.
+
+I looked up ${c.empresa} on Google and ${c.siteStatus === "nao-encontrado" ? "couldn't find a website for you" : "saw your website and had a few ideas for it"}. I build websites for ${c.seg.plural}.
+
+Can I show you a quick idea of what yours could look like?`,
+          es: (c) => `${c.oi} ${c.euSou}.
+
+Busqué ${c.empresa} en Google y ${c.siteStatus === "nao-encontrado" ? "no encontré vuestra web" : "vi vuestra web y se me ocurrieron algunas ideas"}. Hago páginas web para ${c.seg.plural}.
+
+¿Te puedo enseñar una idea rápida de cómo quedaría la vuestra?`,
+          "pt-PT": (c) => `${c.oi} ${c.euSou}.
+
+Pesquisei ${c.empresa} no Google e ${c.siteStatus === "nao-encontrado" ? "não encontrei um site vosso" : "vi o vosso site e tive algumas ideias"}. Faço sites para ${c.seg.plural}.
+
+Posso mostrar-lhe uma ideia rápida de como ficaria o vosso?`,
+        }
       },
     ],
   },
@@ -311,6 +523,11 @@ O que achou?`
         quando: "Lembrete leve.",
         categoria: "follow-up",
         texto: (c) => `${c.oi} Conseguiu ver o que te mandei? Se ficou alguma dúvida, me fala que te explico rapidinho.`,
+        trad: {
+          en: (c) => `${c.oi} Did you get a chance to look at what I sent? If you have any questions, just let me know and I'll explain quickly.`,
+          es: (c) => `${c.oi} ¿Pudiste ver lo que te envié? Si tienes alguna duda, dímelo y te lo explico rápido.`,
+          "pt-PT": (c) => `${c.oi} Conseguiu ver o que lhe enviei? Se ficou alguma dúvida, diga-me que explico rapidamente.`,
+        }
       },
       {
         id: "follow-semana",
@@ -320,6 +537,17 @@ O que achou?`
         texto: (c) => `${c.oi} Passando aqui de novo sobre o site de ${c.empresa}. Sei que a rotina é corrida.
 
 Prefere que eu te mande um áudio de um minuto explicando, ou que eu te chame outro dia?`,
+        trad: {
+          en: (c) => `${c.oi} Just following up about the ${c.empresa} website. I know things get busy.
+
+Would you prefer a one-minute voice note explaining it, or should I check back another day?`,
+          es: (c) => `${c.oi} Te escribo otra vez por la web de ${c.empresa}. Sé que el día a día va a tope.
+
+¿Prefieres que te mande un audio de un minuto explicándolo, o te escribo otro día?`,
+          "pt-PT": (c) => `${c.oi} Volto a falar consigo sobre o site de ${c.empresa}. Sei que a rotina é corrida.
+
+Prefere que lhe envie um áudio de um minuto a explicar, ou que fale consigo noutro dia?`,
+        }
       },
       {
         id: "follow-ultima",
@@ -329,6 +557,17 @@ Prefere que eu te mande um áudio de um minuto explicando, ou que eu te chame ou
         texto: (c) => `${c.oi} Vou parar de te chamar sobre isso para não incomodar.
 
 Se em algum momento fizer sentido ter ${c.umServico} para ${c.empresa}, é só me mandar mensagem aqui. Abraço.`,
+        trad: {
+          en: (c) => `${c.oi} I'll stop messaging you about this so I don't bother you.
+
+If a website for ${c.empresa} ever makes sense, just message me here. All the best.`,
+          es: (c) => `${c.oi} Voy a dejar de escribirte sobre esto para no molestar.
+
+Si en algún momento os interesa tener una web para ${c.empresa}, escríbeme por aquí. Un saludo.`,
+          "pt-PT": (c) => `${c.oi} Vou deixar de lhe enviar mensagens sobre isto para não incomodar.
+
+Se em algum momento fizer sentido ter um site para ${c.empresa}, é só enviar-me mensagem aqui. Cumprimentos.`,
+        }
       },
     ],
   },
@@ -501,6 +740,11 @@ Obrigado pela confiança.`,
 export function telefoneWhatsApp(tel: string): string {
   let d = (tel || "").replace(/\D/g, "");
   if (!d) return "";
+  // Número internacional (+1, +44, +351...): já vem com o código do país.
+  if (/^\s*(\+|00)/.test(tel || "")) {
+    d = d.replace(/^00/, "");
+    return d.length >= 8 && d.length <= 15 ? d : "";
+  }
   d = d.replace(/^0+/, "");
   if (d.length === 10 || d.length === 11) d = `55${d}`;
   if (d.length < 12 || d.length > 13) return "";

@@ -5,6 +5,7 @@ import { SEGMENTOS, SERVICOS } from "@/lib/catalogo";
 import { novoId } from "@/lib/store";
 import type { Lead } from "@/lib/types";
 import { lerLocalDoLead, SeletorLocal } from "./SeletorLocal";
+import { LISTA_PAISES, PAISES, type PaisId } from "@/lib/paises";
 
 export const leadVazio = (): Lead => ({
   id: novoId(),
@@ -36,7 +37,11 @@ export default function FormLead({ inicial, onSalvar, onFechar }: { inicial: Lea
         onSubmit={(e) => {
           e.preventDefault();
           if (!l.empresa.trim()) return;
-          onSalvar({ ...l, siteStatus: l.site.trim() ? l.siteStatus : "nao-encontrado" });
+          const ddi = l.pais ? PAISES[l.pais].ddi : "";
+          const tel = l.telefone.trim();
+          // Fora do Brasil, guarda o número com o código do país (+1, +44...) para o WhatsApp abrir certo.
+          const telefone = ddi && tel && !/^(\+|00)/.test(tel) ? `+${ddi} ${tel.replace(new RegExp(`^${ddi}`), "")}` : tel;
+          onSalvar({ ...l, telefone, siteStatus: l.site.trim() ? l.siteStatus : "nao-encontrado" });
         }}
       >
         <h2 style={{ marginTop: 0 }}>{inicial.empresa ? "Editar lead" : "Novo lead"}</h2>
@@ -49,12 +54,25 @@ export default function FormLead({ inicial, onSalvar, onFechar }: { inicial: Lea
               {SEGMENTOS.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
             </select>
           </label>
-          <SeletorLocal
-            valor={lerLocalDoLead(l.cidade)}
-            onChange={(v) => set("cidade", v.cidade || v.uf ? `${v.cidade}/${v.uf}` : "")}
-            comBairro={false}
-          />
-          <label className="campo"><span>WhatsApp com DDD</span><input value={l.telefone} inputMode="tel" onChange={(e) => set("telefone", e.target.value)} placeholder="(98) 99123-4567" /></label>
+          <label className="campo">
+            <span>País</span>
+            <select value={l.pais ?? "BR"} onChange={(e) => setL((x) => ({ ...x, pais: e.target.value === "BR" ? undefined : (e.target.value as PaisId), cidade: "" }))}>
+              {LISTA_PAISES.map((p) => <option key={p.id} value={p.id}>{p.bandeira} {p.nome}</option>)}
+            </select>
+          </label>
+          {(l.pais ?? "BR") === "BR" ? (
+            <SeletorLocal
+              valor={lerLocalDoLead(l.cidade)}
+              onChange={(v) => set("cidade", v.cidade || v.uf ? `${v.cidade}/${v.uf}` : "")}
+              comBairro={false}
+            />
+          ) : (
+            <label className="campo"><span>Cidade</span><input value={l.cidade} onChange={(e) => set("cidade", e.target.value)} placeholder="Ex.: Miami" /></label>
+          )}
+          <label className="campo">
+            <span>{(l.pais ?? "BR") === "BR" ? "WhatsApp com DDD" : `WhatsApp com +${PAISES[l.pais!].ddi}`}</span>
+            <input value={l.telefone} inputMode="tel" onChange={(e) => set("telefone", e.target.value)} placeholder={(l.pais ?? "BR") === "BR" ? "(98) 99123-4567" : `+${PAISES[l.pais!].ddi} ...`} />
+          </label>
           <label className="campo">
             <span>Serviço que deseja oferecer</span>
             <select value={l.servicoInteresse} onChange={(e) => set("servicoInteresse", e.target.value as Lead["servicoInteresse"])}>

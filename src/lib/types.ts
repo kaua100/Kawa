@@ -1,3 +1,5 @@
+import type { PaisId } from "./paises";
+
 export type SegmentoId =
   | "odontologia"
   | "clinica-medica"
@@ -112,7 +114,8 @@ export interface Lead {
   roteiro?: "conversa" | "direto"; // caminho escolhido para conduzir a conversa
   reuniaoData?: string; // data e hora da reunião (AAAA-MM-DDTHH:MM)
   valor?: number; // valor fechado ou proposto, em reais
-  marcos?: Partial<Record<StatusLead, string>>; // quando o lead entrou em cada etapa (ISO)
+  marcos?: Partial<Record<StatusLead, string>>;
+  pais?: PaisId; // país do lead (sem valor = Brasil) // quando o lead entrou em cada etapa (ISO)
   servicoInteresse: ServicoId;
   status: StatusLead;
   contatos: Contato[];

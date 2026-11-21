@@ -5,6 +5,7 @@ import { avisar, postar, useIntegracoes } from "@/lib/api";
 import { linkSite, linkZap, qualificar, registrarEnvio, textoDaMensagem, type Temperatura } from "@/lib/acoes";
 import { NICHOS_EM_ALTA, SEGMENTOS, SERVICOS, TERMO_MAPS, detectarSegmento, segmentoPorId } from "@/lib/catalogo";
 import { telefoneWhatsApp } from "@/lib/prontas";
+import { LISTA_PAISES, PAISES, termoDeBusca, type PaisId } from "@/lib/paises";
 import { enviarPeloZap, useZap } from "@/lib/zap";
 import { adicionarTokenApify, definirApifyToken, novoId, removerTokenApify, salvarLead, salvarVariosLeads, useEstado } from "@/lib/store";
 import type { Lead, SegmentoId, ServicoId } from "@/lib/types";
@@ -19,11 +20,13 @@ const chave = (nome: string, tel: string) => telefoneWhatsApp(tel) || nome.trim(
 interface PesquisaSalva {
   id: string;
   quando: string;
+  pais?: PaisId;
   segBusca: SegmentoId;
   local: string;
   encontrados: Encontrado[];
 }
 interface Pendente {
+  pais?: PaisId;
   runId: string;
   token: string;
   segBusca: SegmentoId;
@@ -61,7 +64,24 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
   const integ = useIntegracoes();
   const zap = useZap();
   const [segmento, setSegmento] = useState<SegmentoId>("odontologia");
-  const [busca, setBusca] = useState(TERMO_MAPS.odontologia);
+  const [paisSel, setPaisSel] = useState<PaisId>(() => {
+    try {
+      const v = localStorage.getItem("mindstrat:pais") as PaisId | null;
+      return v && v in PAISES ? v : "BR";
+    } catch {
+      return "BR";
+    }
+  });
+  const [fora, setFora] = useState<{ cidade: string; regiao: string }>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mindstrat:local-fora") || "") as { cidade: string; regiao: string };
+    } catch {
+      return { cidade: "", regiao: "" };
+    }
+  });
+  const pais = PAISES[paisSel];
+  const busca = termoDeBusca(segmento, TERMO_MAPS[segmento], pais);
+  const [paisResultado, setPaisResultado] = useState<PaisId>("BR");
   const [lugar, setLugar] = useState<Local>(() => {
     try {
       return JSON.parse(localStorage.getItem("mindstrat:local") || "") as Local;
@@ -69,7 +89,23 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
       return { uf: "", cidade: "", bairro: "" };
     }
   });
-  const local = localParaBusca(lugar);
+  const local = paisSel === "BR" ? localParaBusca(lugar) : [fora.cidade.trim(), fora.regiao.trim(), pais.nomeBusca].filter(Boolean).join(", ");
+  const guardar = (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* sem armazenamento */
+    }
+  };
+  const mudarPais = (id: PaisId) => {
+    setPaisSel(id);
+    guardar("mindstrat:pais", id);
+  };
+  const mudarFora = (x: Partial<typeof fora>) => {
+    const novo = { ...fora, ...x };
+    setFora(novo);
+    guardar("mindstrat:local-fora", JSON.stringify(novo));
+  };
   const mudarLugar = (l: Local) => {
     setLugar(l);
     try {
@@ -116,6 +152,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
 
   function abrirPesquisa(p: PesquisaSalva) {
     setAtual(p.id);
+    setPaisResultado(p.pais ?? "BR");
     setSegBusca(p.segBusca);
     setEncontrados(p.encontrados);
     setMarcados(new Set());
@@ -149,7 +186,6 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
 
   function escolherNicho(s: SegmentoId) {
     setSegmento(s);
-    setBusca(TERMO_MAPS[s]);
   }
 
   function limpar() {
@@ -179,7 +215,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
       let usado = "";
       for (const tk of ordem) {
         try {
-          ({ runId } = await postar<{ runId: string }>("/api/apify/iniciar", { busca, local, maximo, contatos, token: tk }));
+          ({ runId } = await postar<{ runId: string }>("/api/apify/iniciar", { busca, local, maximo, contatos, token: tk, pais: paisSel }));
           usado = tk;
           break;
         } catch (e) {
@@ -193,7 +229,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
         }
       }
       if (usado && usado !== apifyToken) definirApifyToken(usado);
-      const pend: Pendente = { runId, token: usado, segBusca: detectarSegmento(busca) ?? segmento, local, inicio };
+      const pend: Pendente = { pais: paisSel, runId, token: usado, segBusca: segmento, local, inicio };
       gravar(K_PENDENTE, pend);
       clearInterval(relogio);
       await acompanhar(pend);
@@ -216,6 +252,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
           const nova: PesquisaSalva = {
             id: pend.runId,
             quando: new Date().toISOString(),
+            pais: pend.pais ?? "BR",
             segBusca: pend.segBusca,
             local: pend.local.replace(/, Brasil$/, ""),
             encontrados: r.encontrados ?? [],
@@ -244,7 +281,8 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
       empresa: e.nome,
       responsavel: "",
       segmento: detectarSegmento(e.categoria, e.nome) ?? segBusca,
-      cidade: e.cidade || localParaLead(lugar),
+      cidade: e.cidade || (paisResultado === "BR" ? localParaLead(lugar) : ""),
+      ...(paisResultado !== "BR" ? { pais: paisResultado } : {}),
       telefone: e.telefone,
       site: e.site,
       siteStatus: e.site ? "ok" : "nao-encontrado",
@@ -327,7 +365,28 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
                 ))}
             </select>
           </label>
-          <SeletorLocal valor={lugar} onChange={mudarLugar} />
+          <label className="campo">
+            <span>País</span>
+            <select value={paisSel} onChange={(e) => mudarPais(e.target.value as PaisId)}>
+              {LISTA_PAISES.map((x) => (
+                <option key={x.id} value={x.id}>{x.bandeira} {x.nome}</option>
+              ))}
+            </select>
+          </label>
+          {paisSel === "BR" ? (
+            <SeletorLocal valor={lugar} onChange={mudarLugar} />
+          ) : (
+            <>
+              <label className="campo">
+                <span>Cidade</span>
+                <input value={fora.cidade} onChange={(e) => mudarFora({ cidade: e.target.value })} placeholder={pais.id === "PT" ? "Ex.: Porto" : pais.id === "ES" ? "Ex.: Valencia" : pais.id === "GB" ? "Ex.: Manchester" : pais.id === "AU" ? "Ex.: Melbourne" : pais.id === "CA" ? "Ex.: Toronto" : "Ex.: Miami"} required />
+              </label>
+              <label className="campo">
+                <span>{pais.regiao.split(" (")[0]} (opcional)</span>
+                <input value={fora.regiao} onChange={(e) => mudarFora({ regiao: e.target.value })} placeholder={pais.regiao.includes("(") ? pais.regiao.split("(")[1].replace(")", "") : ""} />
+              </label>
+            </>
+          )}
           <label className="campo">
             <span>Quantidade</span>
             <select value={maximo} onChange={(e) => setMaximo(Number(e.target.value))}>
@@ -407,7 +466,7 @@ export default function BuscarLeads({ onImportados, onAbrir }: { onImportados: (
             {pesquisas.map((p) => (
               <div key={p.id} className={`pesquisa ${atual === p.id ? "ativa" : ""}`}>
                 <button type="button" onClick={() => abrirPesquisa(p)}>
-                  <b>{segmentoPorId(p.segBusca).plural.charAt(0).toUpperCase() + segmentoPorId(p.segBusca).plural.slice(1)}</b>
+                  <b>{p.pais && p.pais !== "BR" ? `${PAISES[p.pais].bandeira} ` : ""}{segmentoPorId(p.segBusca).plural.charAt(0).toUpperCase() + segmentoPorId(p.segBusca).plural.slice(1)}</b>
                   <small>{p.local.split(",").slice(-2).join(",").trim()} · {p.encontrados.length} · {quandoCurto(p.quando)}</small>
                 </button>
                 <button type="button" className="pesquisa-x" onClick={() => apagarPesquisa(p.id)} aria-label="Apagar pesquisa">×</button>

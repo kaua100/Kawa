@@ -5,6 +5,13 @@ import { segmentoPorId } from "./catalogo";
 import { telefoneWhatsApp } from "./prontas";
 import { supabase } from "./supabase";
 import type { Lead } from "./types";
+import { paisDoLead, type Pais } from "./paises";
+
+export const IDIOMAS_SITE = ["Português do Brasil", "Português de Portugal", "Inglês dos Estados Unidos", "Inglês do Reino Unido", "Inglês do Canadá", "Inglês da Austrália", "Espanhol da Espanha"];
+
+export function idiomaDoSite(p: Pais) {
+  return { BR: "Português do Brasil", PT: "Português de Portugal", US: "Inglês dos Estados Unidos", GB: "Inglês do Reino Unido", CA: "Inglês do Canadá", AU: "Inglês da Austrália", ES: "Espanhol da Espanha" }[p.id];
+}
 
 export interface DadosSite {
   empresa: string;
@@ -19,6 +26,7 @@ export interface DadosSite {
   nota: string;
   descricao: string;
   servicos: string;
+  idioma?: string; // idioma dos textos do site
 }
 
 export interface EstiloSite {
@@ -78,7 +86,7 @@ export const estiloPadrao = (): EstiloSite => ({
   secoes: [...SECOES_PADRAO],
 });
 
-export const dadosVazios = (): DadosSite => ({ empresa: "", segmento: "", cidade: "", endereco: "", telefone: "", whatsapp: "", instagram: "", site: "", mapa: "", nota: "", descricao: "", servicos: "" });
+export const dadosVazios = (): DadosSite => ({ empresa: "", segmento: "", cidade: "", endereco: "", telefone: "", whatsapp: "", instagram: "", site: "", mapa: "", nota: "", descricao: "", servicos: "", idioma: "Português do Brasil" });
 
 /** Usa tudo o que o lead já tem (vindo da Apify ou cadastrado à mão). */
 export function dadosDoLead(l: Lead): DadosSite {
@@ -96,6 +104,7 @@ export function dadosDoLead(l: Lead): DadosSite {
     nota,
     descricao: [l.infoPublica, l.responsavel ? `Responsável: ${l.responsavel}` : ""].filter(Boolean).join("\n"),
     servicos: "",
+    idioma: idiomaDoSite(paisDoLead(l)),
   };
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { PAISES } from "@/lib/paises";
 import { useMemo, useState } from "react";
-import { FASES, faseDoLead, oQueFazer, adiar, calcularMetricas, filaDeHoje, reais, sugerirPreco, sugestao, type ItemFila } from "@/lib/acoes";
+import { FASES, faseDoLead, oQueFazer, adiar, calcularMetricas, filaDeHoje, reais, sugerirPreco, sugestao, type ItemFila, valorTexto } from "@/lib/acoes";
 import { STATUS, segmentoPorId } from "@/lib/catalogo";
 import { useEstado } from "@/lib/store";
 import { Avatar, BotaoMaps, BotaoZap, SeloTemperatura } from "./AcoesRapidas";
@@ -82,11 +83,11 @@ function Linha({ item, onAbrir }: { item: ItemFila; onAbrir: (id: string) => voi
       <div className="cl-topo">
         <Avatar nome={lead.empresa} />
         <div className="cl-nome">
-          <b>{lead.empresa}</b>
+          <b>{lead.pais && lead.pais !== "BR" ? `${PAISES[lead.pais].bandeira} ` : ""}{lead.empresa}</b>
           <small>{segmentoPorId(lead.segmento).nome}{lead.cidade ? `, ${lead.cidade.split("/")[0]}` : ""}</small>
         </div>
         <div className="cl-direita">
-            <strong className="cl-valor">{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
+            <strong className="cl-valor">{valorTexto(lead, lead.valor ?? sugerirPreco(lead).sugerido)}</strong>
             <SeloTemperatura lead={lead} soBarras />
           </div>
       </div>

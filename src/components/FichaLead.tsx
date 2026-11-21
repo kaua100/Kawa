@@ -1,5 +1,6 @@
 "use client";
 
+import { paisDoLead, PAISES } from "@/lib/paises";
 import { useEffect, useState, useRef } from "react";
 import { avisar } from "@/lib/api";
 import {
@@ -18,8 +19,7 @@ import {
   sugestao,
   textoDaMensagem,
   type RotaId,
-  parcelado,
-} from "@/lib/acoes";
+  parcelado, valorTexto } from "@/lib/acoes";
 import { SEGMENTOS, STATUS, TIPOS_CONTATO, servicoPorId } from "@/lib/catalogo";
 import { ETAPAS } from "@/lib/prontas";
 import { adicionarContato, alterarLead, excluirContato, excluirLead, salvarLead, useEstado } from "@/lib/store";
@@ -62,7 +62,7 @@ export default function FichaLead({ leadId, onFechar, onMensagens, onConversa, o
         <header className="ficha-topo">
           <button className="voltar" onClick={onFechar}><IcVoltar /> Voltar</button>
           <div className="ficha-titulo">
-            <h2>{lead.empresa}</h2>
+            <h2>{lead.pais && lead.pais !== "BR" ? `${PAISES[lead.pais].bandeira} ` : ""}{lead.empresa}</h2>
             <p>
               <select
                 className="nicho-sel"
@@ -352,8 +352,8 @@ function Negocio({ lead }: { lead: Lead }) {
   return (
     <section className="negocio">
       <div className="preco">
-        <strong>{reais(lead.valor ?? preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
-        {!preco.mensal && (() => {
+        <strong>{valorTexto(lead, lead.valor ?? preco.sugerido)}{preco.mensal ? "/mês" : ""}</strong>
+        {!preco.mensal && paisDoLead(lead).id === "BR" && (() => {
           const p = parcelado(lead.valor ?? preco.sugerido);
           return <small className="preco-parc">ou {p.vezes}x de {reais(p.parcela)} ({reais(p.total)})</small>;
         })()}
@@ -394,7 +394,7 @@ function Negocio({ lead }: { lead: Lead }) {
         )}
         {fechado && !lead.valor && (
           <button className="btn peq" onClick={() => alterarLead(lead.id, (l) => ({ ...l, valor: preco.sugerido }))}>
-            Usar {reais(preco.sugerido)}
+            Usar {valorTexto(lead, preco.sugerido)}
           </button>
         )}
       </div>

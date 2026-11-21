@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { usuarioDaRequisicao } from "@/lib/autenticar";
+import { PAISES, type PaisId } from "@/lib/paises";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ interface Corpo {
   maximo: number;
   contatos: boolean; // buscar Instagram e e-mail no site da empresa (custa mais na Apify)
   token?: string;
+  pais?: PaisId;
 }
 
 /** Inicia a busca na Apify e devolve o id da execução. O app consulta o andamento em /api/apify/status. */
@@ -25,11 +27,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "Informe o que buscar e a cidade." }, { status: 400 });
   }
 
+  const pais = PAISES[c.pais as PaisId] ?? PAISES.BR;
   const input = {
     searchStringsArray: [c.busca.trim()],
     locationQuery: c.local.trim(),
     maxCrawledPlacesPerSearch: Math.min(Math.max(Number(c.maximo) || 20, 1), 200),
-    language: "pt-BR",
+    language: pais.apifyIdioma,
+    ...(pais.id !== "BR" ? { countryCode: pais.id.toLowerCase() } : {}),
     skipClosedPlaces: true,
     scrapeContacts: Boolean(c.contatos),
   };

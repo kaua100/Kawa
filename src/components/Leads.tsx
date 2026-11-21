@@ -1,8 +1,9 @@
 "use client";
 
+import { PAISES } from "@/lib/paises";
 import { useMemo, useState } from "react";
 import { avisar } from "@/lib/api";
-import { dataCurta, FASES, faseDoLead, hojeISO, oQueFazer, proximoEfetivo, qualificar, reais, sugerirPreco, sugestao } from "@/lib/acoes";
+import { dataCurta, FASES, faseDoLead, hojeISO, oQueFazer, proximoEfetivo, qualificar, reais, sugerirPreco, sugestao, valorTexto } from "@/lib/acoes";
 import { SEGMENTOS, STATUS, segmentoPorId } from "@/lib/catalogo";
 import { excluirVariosLeads, salvarLead, useEstado } from "@/lib/store";
 import type { Lead, StatusLead } from "@/lib/types";
@@ -151,11 +152,11 @@ function Lista({ leads, onAbrir }: { leads: Lead[]; onAbrir: (id: string) => voi
           <div className="cl-topo">
             <Avatar nome={l.empresa} />
             <div className="cl-nome">
-              <b>{l.empresa}</b>
+              <b>{l.pais && l.pais !== "BR" ? `${PAISES[l.pais].bandeira} ` : ""}{l.empresa}</b>
               <small>{segmentoPorId(l.segmento).nome}{l.cidade ? `, ${l.cidade.split("/")[0]}` : ""}</small>
             </div>
             <div className="cl-direita">
-            <strong className="cl-valor">{reais(l.valor ?? sugerirPreco(l).sugerido)}</strong>
+            <strong className="cl-valor">{valorTexto(l, l.valor ?? sugerirPreco(l).sugerido)}</strong>
             <SeloTemperatura lead={l} soBarras />
           </div>
           </div>
@@ -214,8 +215,8 @@ function CartaoFase({ lead, onAbrir }: { lead: Lead; onAbrir: (id: string) => vo
       onKeyDown={(e) => e.key === "Enter" && onAbrir(lead.id)}
     >
       <div className="cf-topo">
-        <b>{lead.empresa}</b>
-        <span>{reais(lead.valor ?? sugerirPreco(lead).sugerido)}</span>
+        <b>{lead.pais && lead.pais !== "BR" ? `${PAISES[lead.pais].bandeira} ` : ""}{lead.empresa}</b>
+        <span>{valorTexto(lead, lead.valor ?? sugerirPreco(lead).sugerido)}</span>
       </div>
       <BarraFases lead={lead} />
       <p className={`cf-fazer p-${fazer.tipo}`}>{fazer.texto}</p>

@@ -26,7 +26,8 @@ function mapear(i: Item): Encontrado {
   const estado = str(i.state);
   return {
     nome: str(i.title),
-    telefone: str(i.phone) || str(i.phoneUnformatted),
+    // Fora do Brasil, guarda o número internacional (+1, +44...) para o WhatsApp funcionar.
+    telefone: /^\+(?!55)/.test(str(i.phoneUnformatted)) ? str(i.phoneUnformatted) : str(i.phone) || str(i.phoneUnformatted),
     site: str(i.website),
     endereco: str(i.address) || [str(i.street), cidade].filter(Boolean).join(", "),
     cidade: cidade ? `${cidade}${estado ? `/${siglaUF(estado)}` : ""}` : "",
